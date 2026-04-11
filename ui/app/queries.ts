@@ -26,7 +26,7 @@ function filterLines(f?: QueryFilters): string {
 
 /** Execution Assignee list for filter dropdown */
 export const assigneeListQuery = () => `
-fetch bizevents, from:now()-1d
+fetch bizevents, from:now()-7d
 | filter event.type == "jira_daily.valueincrement"
 | filter matchesValue(\`owning Program\`, "Platform Apps")
 | sort timestamp desc
@@ -40,7 +40,7 @@ fetch bizevents, from:now()-1d
 
 /** Component list for filter dropdown */
 export const componentListQuery = () => `
-fetch bizevents, from:now()-1d
+fetch bizevents, from:now()-7d
 | filter event.type == "jira_daily.valueincrement"
 | filter matchesValue(\`owning Program\`, "Platform Apps")
 | sort timestamp desc
@@ -95,7 +95,7 @@ fetch bizevents, from:now()-${days}d
 
 /** Portfolio overview — all active PAPA VIs grouped by status */
 export const portfolioQuery = (f?: QueryFilters) => `
-fetch bizevents, from:now()-1d
+fetch bizevents, from:now()-7d
 | filter event.type == "jira_daily.valueincrement"
 | filter matchesValue(\`owning Program\`, "Platform Apps")${filterLines(f)}
 | sort timestamp desc
@@ -106,6 +106,23 @@ fetch bizevents, from:now()-1d
     by: { key }
 | summarize item_count = count(), by: { latest_status }
 | sort item_count desc
+`;
+
+/** Portfolio items for a specific status — drill-down from portfolio overview */
+export const portfolioItemsQuery = (status: string, f?: QueryFilters) => `
+fetch bizevents, from:now()-7d
+| filter event.type == "jira_daily.valueincrement"
+| filter matchesValue(\`owning Program\`, "Platform Apps")${filterLines(f)}
+| sort timestamp desc
+| summarize
+    latest_status = last(status),
+    latest_fv = last(fixVersions),
+    latest_summary = last(summary),
+    latest_assignee = last(\`Execution Assignee\`),
+    status_details = last(\`Status details\`),
+    by: { key }
+| filter latest_status == "${status}"
+| sort key asc
 `;
 
 /** Items with no update in 30+ days (stale detection) */
@@ -149,7 +166,7 @@ fetch bizevents, from:now()-${days}d
 
 /** Full VI list — latest snapshot of all PAPA items */
 export const allItemsQuery = (f?: QueryFilters) => `
-fetch bizevents, from:now()-1d
+fetch bizevents, from:now()-7d
 | filter event.type == "jira_daily.valueincrement"
 | filter matchesValue(\`owning Program\`, "Platform Apps")${filterLines(f)}
 | sort timestamp desc
@@ -167,7 +184,7 @@ fetch bizevents, from:now()-1d
 
 /** Portfolio by assignee — for the assignee breakdown chart */
 export const portfolioByAssigneeQuery = (f?: QueryFilters) => `
-fetch bizevents, from:now()-1d
+fetch bizevents, from:now()-7d
 | filter event.type == "jira_daily.valueincrement"
 | filter matchesValue(\`owning Program\`, "Platform Apps")${filterLines(f)}
 | sort timestamp desc
@@ -180,7 +197,7 @@ fetch bizevents, from:now()-1d
 
 /** Portfolio by status (for active items chart) */
 export const activePortfolioQuery = (f?: QueryFilters) => `
-fetch bizevents, from:now()-1d
+fetch bizevents, from:now()-7d
 | filter event.type == "jira_daily.valueincrement"
 | filter matchesValue(\`owning Program\`, "Platform Apps")${filterLines(f)}
 | sort timestamp desc

@@ -13,6 +13,7 @@ import {
   fvSprintChangesQuery,
   deliveryUpdatesQuery,
   portfolioQuery,
+  portfolioItemsQuery,
   staleItemsQuery,
   nearFutureQuery,
   activePortfolioQuery,
@@ -45,17 +46,28 @@ function JiraLink({ value }: { value: unknown }) {
 /** Render an assignee name as a clickable filter trigger */
 function AssigneeCell({ value, onFilter }: { value: unknown; onFilter?: (name: string) => void }) {
   const name = String(value ?? "");
-  if (!name || name === "null") return <span style={{ opacity: 0.4 }}>Unassigned</span>;
-  return onFilter ? (
-    <a
+  if (!name || name === "null" || name === "undefined") return <span style={{ opacity: 0.4 }}>Unassigned</span>;
+  if (!onFilter) return <span>{name}</span>;
+  return (
+    <button
+      type="button"
       onClick={(e) => { e.stopPropagation(); onFilter(name); }}
-      style={{ color: "#a5b4fc", cursor: "pointer", textDecoration: "none" }}
+      style={{
+        background: "none",
+        border: "none",
+        padding: 0,
+        color: "#a5b4fc",
+        cursor: "pointer",
+        textDecoration: "underline",
+        textDecorationStyle: "dotted",
+        textUnderlineOffset: "3px",
+        fontSize: "inherit",
+        fontFamily: "inherit",
+      }}
       title={`Filter by ${name}`}
     >
       {name}
-    </a>
-  ) : (
-    <span>{name}</span>
+    </button>
   );
 }
 
@@ -104,45 +116,45 @@ function makeColumns(
 }
 
 const changeColumnDefs = [
-  { id: "key", accessor: "key", header: "Key", minWidth: 130 },
+  { id: "key", accessor: "key", header: "Key", minWidth: 130, alignment: "center" as const },
   { id: "latest_summary", accessor: "latest_summary", header: "Summary", minWidth: 260 },
-  { id: "latest_assignee", accessor: "latest_assignee", header: "Assignee", minWidth: 140 },
-  { id: "earliest_fv", accessor: "earliest_fv", header: "Prev FV" },
-  { id: "latest_fv", accessor: "latest_fv", header: "New FV" },
-  { id: "earliest_sprint", accessor: "earliest_sprint", header: "Prev Sprint" },
-  { id: "latest_sprint", accessor: "latest_sprint", header: "New Sprint" },
+  { id: "latest_assignee", accessor: "latest_assignee", header: "Assignee", minWidth: 140, alignment: "center" as const },
+  { id: "earliest_fv", accessor: "earliest_fv", header: "Prev FV", alignment: "center" as const },
+  { id: "latest_fv", accessor: "latest_fv", header: "New FV", alignment: "center" as const },
+  { id: "earliest_sprint", accessor: "earliest_sprint", header: "Prev Sprint", alignment: "center" as const },
+  { id: "latest_sprint", accessor: "latest_sprint", header: "New Sprint", alignment: "center" as const },
 ];
 
 const deliveryColumnDefs = [
-  { id: "key", accessor: "key", header: "Key", minWidth: 130 },
+  { id: "key", accessor: "key", header: "Key", minWidth: 130, alignment: "center" as const },
   { id: "latest_summary", accessor: "latest_summary", header: "Summary", minWidth: 260 },
-  { id: "latest_assignee", accessor: "latest_assignee", header: "Assignee", minWidth: 140 },
-  { id: "earliest_status", accessor: "earliest_status", header: "From" },
-  { id: "latest_status", accessor: "latest_status", header: "To" },
-  { id: "latest_fv", accessor: "latest_fv", header: "Fix Version" },
+  { id: "latest_assignee", accessor: "latest_assignee", header: "Assignee", minWidth: 140, alignment: "center" as const },
+  { id: "earliest_status", accessor: "earliest_status", header: "From", alignment: "center" as const },
+  { id: "latest_status", accessor: "latest_status", header: "To", alignment: "center" as const },
+  { id: "latest_fv", accessor: "latest_fv", header: "Fix Version", alignment: "center" as const },
 ];
 
 const staleColumnDefs = [
-  { id: "key", accessor: "key", header: "Key", minWidth: 130 },
+  { id: "key", accessor: "key", header: "Key", minWidth: 130, alignment: "center" as const },
   { id: "latest_summary", accessor: "latest_summary", header: "Summary", minWidth: 260 },
-  { id: "latest_assignee", accessor: "latest_assignee", header: "Assignee", minWidth: 140 },
-  { id: "latest_status", accessor: "latest_status", header: "Status" },
-  { id: "latest_fv", accessor: "latest_fv", header: "Fix Version" },
-  { id: "last_seen", accessor: "last_seen", header: "Last Seen" },
+  { id: "latest_assignee", accessor: "latest_assignee", header: "Assignee", minWidth: 140, alignment: "center" as const },
+  { id: "latest_status", accessor: "latest_status", header: "Status", alignment: "center" as const },
+  { id: "latest_fv", accessor: "latest_fv", header: "Fix Version", alignment: "center" as const },
+  { id: "last_seen", accessor: "last_seen", header: "Last Seen", alignment: "center" as const },
 ];
 
 const nearFutureColumnDefs = [
-  { id: "key", accessor: "key", header: "Key", minWidth: 130 },
+  { id: "key", accessor: "key", header: "Key", minWidth: 130, alignment: "center" as const },
   { id: "latest_summary", accessor: "latest_summary", header: "Summary", minWidth: 260 },
-  { id: "latest_assignee", accessor: "latest_assignee", header: "Assignee", minWidth: 140 },
-  { id: "earliest_status", accessor: "earliest_status", header: "From" },
-  { id: "latest_status", accessor: "latest_status", header: "To" },
-  { id: "latest_fv", accessor: "latest_fv", header: "Fix Version" },
+  { id: "latest_assignee", accessor: "latest_assignee", header: "Assignee", minWidth: 140, alignment: "center" as const },
+  { id: "earliest_status", accessor: "earliest_status", header: "From", alignment: "center" as const },
+  { id: "latest_status", accessor: "latest_status", header: "To", alignment: "center" as const },
+  { id: "latest_fv", accessor: "latest_fv", header: "Fix Version", alignment: "center" as const },
 ];
 
 const portfolioTableColumns: Col[] = [
   { id: "latest_status", accessor: "latest_status", header: "Status", minWidth: 200 },
-  { id: "count", accessor: "item_count", header: "Count" },
+  { id: "count", accessor: "item_count", header: "Count", alignment: "center" },
 ];
 
 /* ── Signal colors for KPI cards ────────────────────────────── */
@@ -451,8 +463,8 @@ function SectionCard({
   );
 }
 
-/* ── Filter Bar ─────────────────────────────────────────────── */
-function FilterBar({
+/* ── Compact Filter Chips ───────────────────────────────────── */
+function FilterChips({
   filters,
   setFilters,
 }: {
@@ -465,61 +477,106 @@ function FilterBar({
   const components = componentData?.records ?? [];
 
   return (
+    <Flex gap={8} alignItems="center" flexFlow="wrap">
+      <Select
+        value={filters.executionAssignee ?? ""}
+        onChange={(value) => {
+          const val = value && value !== "" ? String(value) : null;
+          setFilters((prev) => ({ ...prev, executionAssignee: val }));
+        }}
+        style={{ minWidth: 180 }}
+      >
+        <SelectOption value="">All assignees</SelectOption>
+        {assignees.map((a) => (
+          <SelectOption key={String(a["Execution Assignee"])} value={String(a["Execution Assignee"])}>
+            {String(a["Execution Assignee"])} ({String(a.item_count)})
+          </SelectOption>
+        ))}
+      </Select>
+      <Select
+        value={filters.component ?? ""}
+        onChange={(value) => {
+          const val = value && value !== "" ? String(value) : null;
+          setFilters((prev) => ({ ...prev, component: val }));
+        }}
+        style={{ minWidth: 180 }}
+      >
+        <SelectOption value="">All components</SelectOption>
+        {components.map((c) => (
+          <SelectOption key={String(c.latest_components)} value={String(c.latest_components)}>
+            {String(c.latest_components)} ({String(c.item_count)})
+          </SelectOption>
+        ))}
+      </Select>
+      {(filters.executionAssignee || filters.component) && (
+        <button
+          onClick={() => setFilters({ executionAssignee: null, component: null })}
+          style={{
+            background: "rgba(239,68,68,0.15)",
+            border: "1px solid rgba(239,68,68,0.3)",
+            borderRadius: 16,
+            padding: "4px 12px",
+            color: "#f87171",
+            cursor: "pointer",
+            fontSize: 12,
+            fontWeight: 600,
+          }}
+        >
+          ✕ Clear
+        </button>
+      )}
+    </Flex>
+  );
+}
+
+/* ── Portfolio Card with Status Drill-Down ──────────────────── */
+function PortfolioStatusItems({ status, filters }: { status: string; filters: QueryFilters }) {
+  const { data, isLoading, error } = useDql({ query: portfolioItemsQuery(status, filters) });
+  const records = data?.records ?? [];
+
+  const cols: Col[] = useMemo(() => [
+    { id: "key", accessor: "key", header: "Key", minWidth: 120, alignment: "center" as const,
+      cell: ({ value }: { value: unknown }) => <JiraLink value={value} /> },
+    { id: "latest_summary", accessor: "latest_summary", header: "Summary", minWidth: 260 },
+    { id: "latest_assignee", accessor: "latest_assignee", header: "Assignee", minWidth: 140, alignment: "center" as const },
+    { id: "latest_fv", accessor: "latest_fv", header: "Fix Version", alignment: "center" as const },
+  ], []);
+
+  if (isLoading) return <Flex justifyContent="center" padding={8}><ProgressCircle size="small" /></Flex>;
+  if (error) return <Paragraph style={{ color: Colors.Text.Critical.Default, fontSize: 12 }}>Error: {error.message}</Paragraph>;
+  if (records.length === 0) return <Paragraph style={{ opacity: 0.4, fontSize: 12 }}>No items</Paragraph>;
+
+  return <DataTable data={records} columns={cols} />;
+}
+
+function PortfolioCard({ filters }: { filters: QueryFilters }) {
+  const { data, error, isLoading } = useDql({ query: portfolioQuery(filters) });
+  const records = data?.records ?? [];
+
+  return (
     <Surface>
-      <Flex gap={16} padding={16} alignItems="flex-end" flexFlow="wrap">
-        <Flex flexDirection="column" gap={4} style={{ minWidth: 240 }}>
-          <label style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, opacity: 0.6 }}>
-            Execution Assignee
-          </label>
-          <Select
-            value={filters.executionAssignee ?? ""}
-            onChange={(value) => {
-              const val = value && value !== "" ? String(value) : null;
-              setFilters((prev) => ({ ...prev, executionAssignee: val }));
-            }}
-          >
-            <SelectOption value="">All assignees</SelectOption>
-            {assignees.map((a) => (
-              <SelectOption key={String(a["Execution Assignee"])} value={String(a["Execution Assignee"])}>
-                {String(a["Execution Assignee"])} ({String(a.item_count)})
-              </SelectOption>
-            ))}
-          </Select>
+      <Flex flexDirection="column" gap={12} padding={24}>
+        <Flex alignItems="center" gap={12}>
+          <span style={{ width: 4, height: 28, borderRadius: 2, background: "#6366f1", flexShrink: 0 }} />
+          <Flex flexDirection="column" gap={2}>
+            <Heading level={3}>Portfolio Overview</Heading>
+            <Paragraph style={{ opacity: 0.6, fontSize: 13 }}>Click a status to see the items</Paragraph>
+          </Flex>
         </Flex>
-        <Flex flexDirection="column" gap={4} style={{ minWidth: 240 }}>
-          <label style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, opacity: 0.6 }}>
-            Component
-          </label>
-          <Select
-            value={filters.component ?? ""}
-            onChange={(value) => {
-              const val = value && value !== "" ? String(value) : null;
-              setFilters((prev) => ({ ...prev, component: val }));
-            }}
-          >
-            <SelectOption value="">All components</SelectOption>
-            {components.map((c) => (
-              <SelectOption key={String(c.latest_components)} value={String(c.latest_components)}>
-                {String(c.latest_components)} ({String(c.item_count)})
-              </SelectOption>
-            ))}
-          </Select>
-        </Flex>
-        {(filters.executionAssignee || filters.component) && (
-          <button
-            onClick={() => setFilters({ executionAssignee: null, component: null })}
-            style={{
-              background: "none",
-              border: "1px solid rgba(255,255,255,0.2)",
-              borderRadius: 6,
-              padding: "6px 14px",
-              color: "inherit",
-              cursor: "pointer",
-              fontSize: 13,
-            }}
-          >
-            Clear filters
-          </button>
+
+        {isLoading && <Flex justifyContent="center" padding={16}><ProgressCircle /></Flex>}
+        {error && <Paragraph style={{ color: Colors.Text.Critical.Default }}>Query error: {error.message}</Paragraph>}
+
+        {!isLoading && !error && records.length > 0 && (
+          <DataTable data={records} columns={portfolioTableColumns}>
+            <DataTable.ExpandableRow>
+              {({ row }) => (
+                <Flex padding={16} style={{ borderLeft: "3px solid #6366f1", marginLeft: 8 }}>
+                  <PortfolioStatusItems status={String((row as ResultRecord).latest_status)} filters={filters} />
+                </Flex>
+              )}
+            </DataTable.ExpandableRow>
+          </DataTable>
         )}
       </Flex>
     </Surface>
@@ -537,24 +594,51 @@ export const Dashboard = () => {
     setFilters((prev) => ({ ...prev, executionAssignee: name }));
   };
 
-  const filterLabel = filters.executionAssignee
-    ? `Filtered: ${filters.executionAssignee}`
-    : "All Platform Apps";
-
   return (
     <Flex flexDirection="column" padding={32} gap={24}>
-      {/* Hero header */}
-      <Flex flexDirection="column" gap={4}>
-        <Heading>PAPA Delivery Pulse</Heading>
-        <Paragraph style={{ opacity: 0.6 }}>
-          Platform Apps delivery health — powered by Grail bizevents
-          &nbsp;·&nbsp; Last <Strong>{LOOKBACK_DAYS} days</Strong>
-          &nbsp;·&nbsp; {filterLabel}
-        </Paragraph>
+      {/* Hero header with inline filters */}
+      <Flex justifyContent="space-between" alignItems="flex-start" flexFlow="wrap" gap={16}>
+        <Flex flexDirection="column" gap={4} style={{ flex: "1 1 auto" }}>
+          <Heading>PAPA Delivery Pulse</Heading>
+          <Paragraph style={{ opacity: 0.6 }}>
+            Platform Apps delivery health — powered by Grail bizevents
+            &nbsp;·&nbsp; Last <Strong>{LOOKBACK_DAYS} days</Strong>
+          </Paragraph>
+        </Flex>
+        <FilterChips filters={filters} setFilters={setFilters} />
       </Flex>
 
-      {/* Filter bar */}
-      <FilterBar filters={filters} setFilters={setFilters} />
+      {/* Active filter indicator */}
+      {(filters.executionAssignee || filters.component) && (
+        <Flex gap={8} flexFlow="wrap">
+          {filters.executionAssignee && (
+            <span style={{
+              background: "rgba(99,102,241,0.15)",
+              border: "1px solid rgba(99,102,241,0.3)",
+              borderRadius: 16,
+              padding: "4px 12px",
+              fontSize: 12,
+              fontWeight: 600,
+              color: "#a5b4fc",
+            }}>
+              Assignee: {filters.executionAssignee}
+            </span>
+          )}
+          {filters.component && (
+            <span style={{
+              background: "rgba(34,197,94,0.15)",
+              border: "1px solid rgba(34,197,94,0.3)",
+              borderRadius: 16,
+              padding: "4px 12px",
+              fontSize: 12,
+              fontWeight: 600,
+              color: "#86efac",
+            }}>
+              Component: {filters.component}
+            </span>
+          )}
+        </Flex>
+      )}
 
       {/* KPI row */}
       <HeroStats filters={filters} />
@@ -563,15 +647,7 @@ export const Dashboard = () => {
       <ChartsRow filters={filters} />
 
       {/* Detail sections */}
-      <SectionCard
-        title="Portfolio Overview"
-        subtitle="All value increments grouped by current status"
-        query={portfolioQuery(filters)}
-        tableColumns={portfolioTableColumns}
-        emptyMessage="No PAPA items found"
-        accentColor="#6366f1"
-        expandable={false}
-      />
+      <PortfolioCard filters={filters} />
 
       <SectionCard
         title="Fix Version & Sprint Changes"
