@@ -67,6 +67,7 @@ fetch bizevents, from:now()-${days}d
     latest_status = last(status),
     latest_summary = last(summary),
     latest_assignee = last(\`Execution Assignee\`),
+    status_details = last(\`Status details\`),
     records = count(),
     by: { key }
 | filter earliest_fv != latest_fv or earliest_sprint != latest_sprint
@@ -85,6 +86,7 @@ fetch bizevents, from:now()-${days}d
     latest_fv = last(fixVersions),
     latest_summary = last(summary),
     latest_assignee = last(\`Execution Assignee\`),
+    status_details = last(\`Status details\`),
     records = count(),
     by: { key }
 | filter earliest_status != latest_status
@@ -117,6 +119,7 @@ fetch bizevents, from:now()-90d
     latest_summary = last(summary),
     latest_fv = last(fixVersions),
     latest_assignee = last(\`Execution Assignee\`),
+    status_details = last(\`Status details\`),
     by: { key }
 | filter last_seen < now()-30d
 | filter not(matchesValue(latest_status, "Closed"))
@@ -137,6 +140,7 @@ fetch bizevents, from:now()-${days}d
     latest_fv = last(fixVersions),
     latest_summary = last(summary),
     latest_assignee = last(\`Execution Assignee\`),
+    status_details = last(\`Status details\`),
     records = count(),
     by: { key }
 | filter latest_status == "Implementation" and earliest_status != "Implementation"
@@ -156,6 +160,7 @@ fetch bizevents, from:now()-1d
     latest_summary = last(summary),
     latest_assignee = last(\`Execution Assignee\`),
     latest_components = last(components),
+    status_details = last(\`Status details\`),
     by: { key }
 | sort latest_status asc, key asc
 `;

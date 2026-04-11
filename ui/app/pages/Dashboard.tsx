@@ -3,7 +3,7 @@ import { Flex } from "@dynatrace/strato-components/layouts";
 import { Surface } from "@dynatrace/strato-components/layouts";
 import { Heading, Paragraph, Strong } from "@dynatrace/strato-components/typography";
 import { Select, SelectOption } from "@dynatrace/strato-components/forms";
-import { DataTable, type DataTableColumnDef } from "@dynatrace/strato-components-preview/tables";
+import { DataTable, type DataTableColumnDef, DataTableExpandableRowTemplate } from "@dynatrace/strato-components-preview/tables";
 import { CategoricalBarChart } from "@dynatrace/strato-components/charts";
 import type { ResultRecord } from "@dynatrace-sdk/client-query";
 import { useDql } from "@dynatrace-sdk/react-hooks";
@@ -221,6 +221,63 @@ function ChartsRow({ filters }: { filters: QueryFilters }) {
   );
 }
 
+/* ── Row Detail (expandable) ────────────────────────────────── */
+function RowDetail({ row }: { row: ResultRecord }) {
+  const details = String(row.status_details ?? "");
+  const key = String(row.key ?? "");
+  const status = String(row.latest_status ?? row.earliest_status ?? "");
+  const fv = String(row.latest_fv ?? "—");
+  const assignee = String(row.latest_assignee ?? "Unassigned");
+
+  // Parse dated entries — typically "DD.MM description" or "YYYY-MM-DD description"
+  const lines = details
+    .split(/\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+
+  return (
+    <Flex flexDirection="column" gap={12} padding={16} style={{ borderLeft: "3px solid #6366f1", marginLeft: 8 }}>
+      {/* Header row */}
+      <Flex gap={24} flexFlow="wrap" alignItems="center">
+        <Flex flexDirection="column" gap={2}>
+          <span style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1, opacity: 0.5 }}>Key</span>
+          <Strong>{key}</Strong>
+        </Flex>
+        <Flex flexDirection="column" gap={2}>
+          <span style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1, opacity: 0.5 }}>Status</span>
+          <span style={{ fontWeight: 600 }}>{status}</span>
+        </Flex>
+        <Flex flexDirection="column" gap={2}>
+          <span style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1, opacity: 0.5 }}>Fix Version</span>
+          <span>{fv}</span>
+        </Flex>
+        <Flex flexDirection="column" gap={2}>
+          <span style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1, opacity: 0.5 }}>Assignee</span>
+          <span>{assignee}</span>
+        </Flex>
+      </Flex>
+
+      {/* Status details */}
+      <Flex flexDirection="column" gap={4}>
+        <span style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1, opacity: 0.5, fontWeight: 600 }}>
+          Status Details
+        </span>
+        {lines.length > 0 ? (
+          <Flex flexDirection="column" gap={4} style={{ fontSize: 13, lineHeight: 1.5 }}>
+            {lines.map((line, i) => (
+              <span key={i} style={{ opacity: i === 0 ? 1 : 0.7 }}>{line}</span>
+            ))}
+          </Flex>
+        ) : (
+          <Paragraph style={{ opacity: 0.4, fontStyle: "italic", fontSize: 13 }}>
+            No status details available
+          </Paragraph>
+        )}
+      </Flex>
+    </Flex>
+  );
+}
+
 /* ── Section Card ───────────────────────────────────────────── */
 function SectionCard({
   title,
@@ -290,7 +347,11 @@ function SectionCard({
         )}
 
         {!isLoading && !error && records.length > 0 && (
-          <DataTable data={records} columns={tableColumns} />
+          <DataTable data={records} columns={tableColumns}>
+            <DataTable.ExpandableRow>
+              {({ row }) => <RowDetail row={row as ResultRecord} />}
+            </DataTable.ExpandableRow>
+          </DataTable>
         )}
       </Flex>
     </Surface>
