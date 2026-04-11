@@ -1,49 +1,51 @@
-# Getting Started with your Dynatrace App
+# PAPA Delivery Pulse
 
-This project was bootstrapped with Dynatrace App Toolkit.
+A Dynatrace platform app for real-time delivery health tracking of Platform Apps value increments.
 
-It uses React in combination with TypeScript, to provide great developer experience.
+## What It Does
 
-## Available Scripts
+- **Dashboard** — Portfolio overview, FV/Sprint changes, delivery status changes, items entering implementation, stale item detection
+- **VI Explorer** — Full list of all PAPA value increments with sorting
+- **DQL Playground** — Ad-hoc DQL queries against Grail
 
-In the project directory, you can run:
+## Data Source
 
-### `npm run start`
+All data comes from `jira_daily.valueincrement` bizevents in Grail — daily snapshots of Jira value increments ingested by the Jira-to-Grail pipeline. The app compares earliest vs latest snapshots within a configurable window to detect changes.
 
-Runs the app in the development mode. A new browser window with your running app will be automatically opened.
+## Getting Started
 
-Edit a component file in `ui` and save it. The page will reload when you make changes. You may also see any errors in the console.
+```bash
+# Start development server (opens in your Dynatrace environment)
+npx dt-app dev
 
-### `npm run build`
+# Deploy to your environment
+npx dt-app deploy
+```
 
-Builds the app for production to the `dist` folder. It correctly bundles your app in production mode and optimizes the build for the best performance.
+## Environment
 
-### `npm run deploy`
+- **App ID**: `my.papa.delivery.pulse`
+- **Target**: `umsaywsjuo.dev.apps.dynatracelabs.com`
+- **Scopes**: `storage:logs:read`, `storage:buckets:read`, `storage:bizevents:read`
 
-Builds the app and deploys it to the specified environment in `app.config.json`.
+## Architecture
 
-### `npm run uninstall
+```
+ui/app/
+├── App.tsx               # Router setup
+├── queries.ts            # All DQL queries (shared)
+├── components/
+│   ├── Header.tsx        # Navigation header
+│   └── Card.tsx          # Reusable card component
+└── pages/
+    ├── Dashboard.tsx     # Main delivery health dashboard
+    ├── Explorer.tsx      # Full VI list with sorting
+    └── Data.tsx          # DQL playground
+```
 
-Uninstalls the app from the specified environment in `app.config.json`.
+## Built With
 
-### `npm run generate:function`
-
-Generates a new serverless function for your app in the `api` folder.
-
-### `npm run update`
-
-Updates @dynatrace-scoped packages to the latest version and applies automatic migrations.
-
-### `npm run info`
-
-Outputs the CLI and environment information.
-
-### `npm run help`
-
-Outputs help for the Dynatrace App Toolkit.
-
-## Learn more
-
-You can find more information on how to use all the features of the new Dynatrace Platform in [Dynatrace Developer](https://dt-url.net/developers).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
+- [Dynatrace App Toolkit](https://developer.dynatrace.com/develop/app-toolkit/) (`dt-app`)
+- [Strato Design System](https://developer.dynatrace.com/develop/ui/) (React components)
+- [Grail / DQL](https://docs.dynatrace.com/docs/platform/grail/dynatrace-query-language) via `@dynatrace-sdk/react-hooks`
+- GitHub Copilot (AI-assisted development)

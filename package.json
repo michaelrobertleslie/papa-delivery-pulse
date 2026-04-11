@@ -1,7 +1,7 @@
 {
   "name": "papa-delivery-pulse",
   "version": "0.0.0",
-  "description": "A starting project with routing, fetching data, and charting",
+  "description": "PAPA delivery health dashboard — a Dynatrace platform app powered by Grail bizevents",
   "scripts": {
     "build": "dt-app build",
     "start": "dt-app dev",

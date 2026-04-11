@@ -4,11 +4,12 @@
   "app": {
     "name": "papa-delivery-pulse",
     "version": "0.0.0",
-    "description": "A starting project with routing, fetching data, and charting",
+    "description": "PAPA delivery health dashboard powered by Grail bizevents",
     "id": "my.papa.delivery.pulse",
     "scopes": [
       { "name": "storage:logs:read", "comment": "default template" },
-      { "name": "storage:buckets:read", "comment": "default template" }
+      { "name": "storage:buckets:read", "comment": "default template" },
+      { "name": "storage:bizevents:read", "comment": "read jira_daily.valueincrement bizevents" }
     ]
   }
 }

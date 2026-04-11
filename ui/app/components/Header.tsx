@@ -7,8 +7,14 @@ export const Header = () => {
     <AppHeader>
       <AppHeader.NavItems>
         <AppHeader.AppNavLink as={Link} to="/" />
+        <AppHeader.NavItem as={Link} to="/">
+          Dashboard
+        </AppHeader.NavItem>
+        <AppHeader.NavItem as={Link} to="/explorer">
+          VI Explorer
+        </AppHeader.NavItem>
         <AppHeader.NavItem as={Link} to="/data">
-          Explore Data
+          DQL Playground
         </AppHeader.NavItem>
       </AppHeader.NavItems>
     </AppHeader>
