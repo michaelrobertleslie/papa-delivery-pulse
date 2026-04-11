@@ -12,10 +12,12 @@ type Col = DataTableColumnDef<ResultRecord>;
 
 const columns: Col[] = [
   { id: "key", accessor: "key", header: "Key", minWidth: 130 },
-  { id: "latest_summary", accessor: "latest_summary", header: "Summary", minWidth: 350 },
-  { id: "latest_status", accessor: "latest_status", header: "Status", minWidth: 150 },
-  { id: "latest_fv", accessor: "latest_fv", header: "Fix Version", minWidth: 120 },
-  { id: "latest_sprint", accessor: "latest_sprint", header: "Sprint", minWidth: 120 },
+  { id: "latest_summary", accessor: "latest_summary", header: "Summary", minWidth: 300 },
+  { id: "latest_status", accessor: "latest_status", header: "Status", minWidth: 130 },
+  { id: "latest_assignee", accessor: "latest_assignee", header: "Assignee", minWidth: 140 },
+  { id: "latest_fv", accessor: "latest_fv", header: "Fix Version", minWidth: 100 },
+  { id: "latest_sprint", accessor: "latest_sprint", header: "Sprint", minWidth: 100 },
+  { id: "latest_components", accessor: "latest_components", header: "Components", minWidth: 140 },
 ];
 
 export const Explorer = () => {
