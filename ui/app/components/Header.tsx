@@ -13,9 +13,6 @@ export const Header = () => {
         <AppHeader.NavItem as={Link} to="/explorer">
           VI Explorer
         </AppHeader.NavItem>
-        <AppHeader.NavItem as={Link} to="/data">
-          DQL Playground
-        </AppHeader.NavItem>
       </AppHeader.NavItems>
     </AppHeader>
   );
