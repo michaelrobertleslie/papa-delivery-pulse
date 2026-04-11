@@ -24,22 +24,8 @@ function filterLines(f?: QueryFilters): string {
   return lines;
 }
 
-/** Execution Assignee list for filter dropdown */
-export const assigneeListQuery = () => `
-fetch bizevents, from:now()-7d
-| filter event.type == "jira_daily.valueincrement"
-| filter matchesValue(\`owning Program\`, "Platform Apps")
-| sort timestamp desc
-| summarize latest_status = last(status), by: { key, \`Execution Assignee\` }
-| filter not(matchesValue(latest_status, "Closed"))
-| filter not(matchesValue(latest_status, "Cancelled"))
-| filter isNotNull(\`Execution Assignee\`)
-| summarize item_count = count(), by: { \`Execution Assignee\` }
-| sort item_count desc
-`;
-
-/** Component list for filter dropdown */
-export const componentListQuery = () => `
+/** Component breakdown for filter dropdown — uses aliased fields (same pattern as portfolioByAssigneeQuery which works via useDql) */
+export const componentBreakdownQuery = () => `
 fetch bizevents, from:now()-7d
 | filter event.type == "jira_daily.valueincrement"
 | filter matchesValue(\`owning Program\`, "Platform Apps")
@@ -47,7 +33,8 @@ fetch bizevents, from:now()-7d
 | summarize latest_status = last(status), latest_components = last(components), by: { key }
 | filter not(matchesValue(latest_status, "Closed"))
 | filter not(matchesValue(latest_status, "Cancelled"))
-| filter not(matchesValue(latest_components, "[]"))
+| filter isNotNull(latest_components)
+| filter latest_components != "[]"
 | summarize item_count = count(), by: { latest_components }
 | sort item_count desc
 `;
@@ -128,13 +115,13 @@ fetch bizevents, from:now()-7d
 | sort key asc
 `;
 
-/** Items with no update in 30+ days (stale detection) */
+/** Items with no Jira update in 60+ days (stale detection) */
 export const staleItemsQuery = (f?: QueryFilters) => `
 fetch bizevents, from:now()-90d
 | filter event.type == "jira_daily.valueincrement"
 | filter matchesValue(\`owning Program\`, "Platform Apps")${filterLines(f)}
 | summarize
-    last_seen = last(timestamp),
+    last_updated = last(updated),
     latest_status = last(status),
     latest_summary = last(summary),
     latest_fv = last(fixVersions),
@@ -142,11 +129,11 @@ fetch bizevents, from:now()-90d
     latest_reporter = last(reporter),
     status_details = last(\`Status details\`),
     by: { key }
-| filter last_seen < now()-30d
 | filter not(matchesValue(latest_status, "Closed"))
 | filter not(matchesValue(latest_status, "Post GA"))
 | filter not(matchesValue(latest_status, "Cancelled"))
-| sort last_seen asc
+| filter last_updated < "${new Date(Date.now() - 60 * 86400000).toISOString().slice(0, 10)}"
+| sort last_updated asc
 `;
 
 /** Near future — items entering Implementation */

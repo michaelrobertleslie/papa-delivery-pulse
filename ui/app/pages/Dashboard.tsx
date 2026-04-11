@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { Flex } from "@dynatrace/strato-components/layouts";
 import { Surface } from "@dynatrace/strato-components/layouts";
 import { Heading, Paragraph, Strong } from "@dynatrace/strato-components/typography";
-import { Select, SelectOption } from "@dynatrace/strato-components/forms";
+import { Select, SelectOption, SelectContent } from "@dynatrace/strato-components/forms";
 import { DataTable, type DataTableColumnDef } from "@dynatrace/strato-components-preview/tables";
 import { CategoricalBarChart } from "@dynatrace/strato-components/charts";
 import type { ResultRecord } from "@dynatrace-sdk/client-query";
@@ -18,8 +18,7 @@ import {
   nearFutureQuery,
   activePortfolioQuery,
   portfolioByAssigneeQuery,
-  assigneeListQuery,
-  componentListQuery,
+  componentBreakdownQuery,
   LOOKBACK_DAYS,
   type QueryFilters,
 } from "../queries";
@@ -29,14 +28,14 @@ const JIRA_BASE = "https://dt-rnd.atlassian.net/browse/";
 /** Render a Jira key as a clickable link opening in a new tab */
 function JiraLink({ value }: { value: unknown }) {
   const key = String(value ?? "");
-  if (!key) return <span>—</span>;
+  if (!key) return <span style={{ display: "flex", alignItems: "center", height: "100%" }}>—</span>;
   return (
     <a
       href={`${JIRA_BASE}${key}`}
       target="_blank"
       rel="noopener noreferrer"
       onClick={(e) => e.stopPropagation()}
-      style={{ color: "#818cf8", textDecoration: "none", fontWeight: 600 }}
+      style={{ color: "#818cf8", textDecoration: "none", fontWeight: 600, display: "flex", alignItems: "center", height: "100%" }}
     >
       {key}
     </a>
@@ -46,13 +45,15 @@ function JiraLink({ value }: { value: unknown }) {
 /** Render an assignee name as a clickable filter trigger */
 function AssigneeCell({ value, onFilter }: { value: unknown; onFilter?: (name: string) => void }) {
   const name = String(value ?? "");
-  if (!name || name === "null" || name === "undefined") return <span style={{ opacity: 0.4 }}>Unassigned</span>;
-  if (!onFilter) return <span>{name}</span>;
+  const centerStyle: React.CSSProperties = { display: "flex", alignItems: "center", height: "100%" };
+  if (!name || name === "null" || name === "undefined") return <span style={{ ...centerStyle, opacity: 0.4 }}>Unassigned</span>;
+  if (!onFilter) return <span style={centerStyle}>{name}</span>;
   return (
     <button
       type="button"
       onClick={(e) => { e.stopPropagation(); onFilter(name); }}
       style={{
+        ...centerStyle,
         background: "none",
         border: "none",
         padding: 0,
@@ -143,7 +144,7 @@ const staleColumnDefs = [
   { id: "latest_reporter", accessor: "latest_reporter", header: "PM", minWidth: 140, alignment: "center" as const },
   { id: "latest_status", accessor: "latest_status", header: "Status", alignment: "center" as const },
   { id: "latest_fv", accessor: "latest_fv", header: "Fix Version", alignment: "center" as const },
-  { id: "last_seen", accessor: "last_seen", header: "Last Seen", alignment: "center" as const },
+  { id: "last_updated", accessor: "last_updated", header: "Last Updated", alignment: "center" as const },
 ];
 
 const nearFutureColumnDefs = [
@@ -154,11 +155,6 @@ const nearFutureColumnDefs = [
   { id: "earliest_status", accessor: "earliest_status", header: "From", alignment: "center" as const },
   { id: "latest_status", accessor: "latest_status", header: "To", alignment: "center" as const },
   { id: "latest_fv", accessor: "latest_fv", header: "Fix Version", alignment: "center" as const },
-];
-
-const portfolioTableColumns: Col[] = [
-  { id: "latest_status", accessor: "latest_status", header: "Status", minWidth: 200 },
-  { id: "count", accessor: "item_count", header: "Count", alignment: "center" },
 ];
 
 /* ── Signal colors for KPI cards ────────────────────────────── */
@@ -255,7 +251,7 @@ function HeroStats({ filters }: { filters: QueryFilters }) {
       <KpiCard label="Active VIs" value={totalItems} signal="info" loading={anyLoading} subtitle="across all statuses" />
       <KpiCard label="Schedule Shifts" value={fvCount} signal={fvCount > 0 ? "warning" : "success"} loading={anyLoading} subtitle={`last ${LOOKBACK_DAYS}d`} />
       <KpiCard label="Status Moves" value={deliveryCount} signal={deliveryCount > 0 ? "success" : "neutral"} loading={anyLoading} subtitle={`last ${LOOKBACK_DAYS}d`} />
-      <KpiCard label="Stale Items" value={staleCount} signal={staleCount > 3 ? "danger" : staleCount > 0 ? "warning" : "success"} loading={anyLoading} subtitle="30+ days silent" />
+      <KpiCard label="Stale Items" value={staleCount} signal={staleCount > 3 ? "danger" : staleCount > 0 ? "warning" : "success"} loading={anyLoading} subtitle="60+ days silent" />
     </Flex>
   );
 }
@@ -292,7 +288,9 @@ function ChartsRow({ filters }: { filters: QueryFilters }) {
           {anyLoading ? (
             <Flex justifyContent="center" padding={24}><ProgressCircle /></Flex>
           ) : statusData.length > 0 ? (
-            <CategoricalBarChart data={statusData} layout="horizontal" />
+            <CategoricalBarChart data={statusData} layout="horizontal">
+              <CategoricalBarChart.Legend hidden />
+            </CategoricalBarChart>
           ) : (
             <Paragraph style={{ opacity: 0.5 }}>No data</Paragraph>
           )}
@@ -306,7 +304,9 @@ function ChartsRow({ filters }: { filters: QueryFilters }) {
           {anyLoading ? (
             <Flex justifyContent="center" padding={24}><ProgressCircle /></Flex>
           ) : assigneeData.length > 0 ? (
-            <CategoricalBarChart data={assigneeData} layout="horizontal" />
+            <CategoricalBarChart data={assigneeData} layout="horizontal">
+              <CategoricalBarChart.Legend hidden />
+            </CategoricalBarChart>
           ) : (
             <Paragraph style={{ opacity: 0.5 }}>No data</Paragraph>
           )}
@@ -477,14 +477,14 @@ function FilterChips({
   filters: QueryFilters;
   setFilters: React.Dispatch<React.SetStateAction<QueryFilters>>;
 }) {
-  const { data: assigneeData, error: assigneeError, isLoading: assigneeLoading } = useDql({ query: assigneeListQuery() });
-  const { data: componentData, error: componentError, isLoading: componentLoading } = useDql({ query: componentListQuery() });
+  const { data: assigneeData, error: assigneeError, isLoading: assigneeLoading } = useDql({ query: portfolioByAssigneeQuery() });
+  const { data: componentData, error: componentError, isLoading: componentLoading } = useDql({ query: componentBreakdownQuery() });
   const assignees = assigneeData?.records ?? [];
   const components = componentData?.records ?? [];
 
   return (
     <Flex gap={8} alignItems="center" flexFlow="wrap">
-      <Flex flexDirection="column" gap={2}>
+      <Flex flexDirection="column" gap={2} style={{ width: 320 }}>
         <span style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, opacity: 0.5 }}>
           Execution Assignee
         </span>
@@ -494,25 +494,29 @@ function FilterChips({
           <Paragraph style={{ color: "#f87171", fontSize: 11 }}>Error loading assignees</Paragraph>
         ) : (
           <Select
+            style={{ width: "100%" }}
             value={filters.executionAssignee ?? ALL}
             onChange={(value) => {
               const val = value === ALL ? null : String(value);
               setFilters((prev) => ({ ...prev, executionAssignee: val }));
             }}
           >
-            <SelectOption value={ALL}>All assignees ({assignees.reduce((s, a) => s + (Number(a.item_count) || 0), 0)})</SelectOption>
-            {assignees.map((a) => {
-              const name = String(a["Execution Assignee"] ?? "");
-              return (
-                <SelectOption key={name} value={name}>
-                  {name} ({String(a.item_count)})
-                </SelectOption>
-              );
-            })}
+            <SelectContent style={{ minWidth: 320 }}>
+              <SelectOption value={ALL}>All assignees ({assignees.length})</SelectOption>
+              {assignees.map((a) => {
+                const name = String(a.latest_assignee ?? "");
+                if (!name) return null;
+                return (
+                  <SelectOption key={name} value={name}>
+                    {name} ({String(a.item_count)})
+                  </SelectOption>
+                );
+              })}
+            </SelectContent>
           </Select>
         )}
       </Flex>
-      <Flex flexDirection="column" gap={2}>
+      <Flex flexDirection="column" gap={2} style={{ width: 360 }}>
         <span style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, opacity: 0.5 }}>
           Component
         </span>
@@ -522,21 +526,26 @@ function FilterChips({
           <Paragraph style={{ color: "#f87171", fontSize: 11 }}>Error loading components</Paragraph>
         ) : (
           <Select
+            style={{ width: "100%" }}
             value={filters.component ?? ALL}
             onChange={(value) => {
               const val = value === ALL ? null : String(value);
               setFilters((prev) => ({ ...prev, component: val }));
             }}
           >
-            <SelectOption value={ALL}>All components ({components.reduce((s, c) => s + (Number(c.item_count) || 0), 0)})</SelectOption>
-            {components.map((c) => {
-              const comp = String(c.latest_components ?? "");
-              return (
-                <SelectOption key={comp} value={comp}>
-                  {comp} ({String(c.item_count)})
-                </SelectOption>
-              );
-            })}
+            <SelectContent style={{ minWidth: 360 }}>
+              <SelectOption value={ALL}>All components ({components.length})</SelectOption>
+              {components.map((c) => {
+                const raw = String(c.latest_components ?? "");
+                if (!raw) return null;
+                const label = raw.replace(/^\["?|"?\]$/g, "").replace(/","/g, ", ");
+                return (
+                  <SelectOption key={raw} value={raw}>
+                    {label} ({String(c.item_count)})
+                  </SelectOption>
+                );
+              })}
+            </SelectContent>
           </Select>
         )}
       </Flex>
@@ -572,7 +581,7 @@ function PortfolioStatusItems({ status, filters }: { status: string; filters: Qu
   if (records.length === 0) return <Paragraph style={{ opacity: 0.4, fontSize: 12 }}>No items in this status</Paragraph>;
 
   return (
-    <Flex flexDirection="column" gap={0} style={{ width: "100%" }}>
+    <Flex flexDirection="column" gap={0} style={{ width: "100%", minWidth: 700 }}>
       {/* Header */}
       <Flex
         gap={0}
@@ -625,6 +634,54 @@ function PortfolioStatusItems({ status, filters }: { status: string; filters: Qu
   );
 }
 
+function PortfolioRow({ record, filters }: { record: ResultRecord; filters: QueryFilters }) {
+  const [expanded, setExpanded] = useState(false);
+  const status = String(record.latest_status ?? "");
+  const count = Number(record.item_count) || 0;
+
+  return (
+    <Flex flexDirection="column" gap={0}>
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          padding: "12px 16px",
+          background: expanded ? "rgba(99,102,241,0.08)" : "transparent",
+          border: "none",
+          borderBottom: "1px solid rgba(255,255,255,0.06)",
+          cursor: "pointer",
+          width: "100%",
+          textAlign: "left",
+          color: "inherit",
+          fontSize: 14,
+          fontFamily: "inherit",
+        }}
+      >
+        <span style={{ opacity: 0.5, fontSize: 12, width: 16 }}>{expanded ? "▼" : "▶"}</span>
+        <span style={{ flex: "1 1 auto", fontWeight: 600 }}>{status}</span>
+        <span style={{
+          background: "rgba(99,102,241,0.2)",
+          borderRadius: 12,
+          padding: "2px 10px",
+          fontSize: 12,
+          fontWeight: 700,
+          color: "#a5b4fc",
+        }}>
+          {count}
+        </span>
+      </button>
+      {expanded && (
+        <Flex padding={16} style={{ borderLeft: "3px solid #6366f1", marginLeft: 16 }}>
+          <PortfolioStatusItems status={status} filters={filters} />
+        </Flex>
+      )}
+    </Flex>
+  );
+}
+
 function PortfolioCard({ filters }: { filters: QueryFilters }) {
   const { data, error, isLoading } = useDql({ query: portfolioQuery(filters) });
   const records = data?.records ?? [];
@@ -644,15 +701,11 @@ function PortfolioCard({ filters }: { filters: QueryFilters }) {
         {error && <Paragraph style={{ color: Colors.Text.Critical.Default }}>Query error: {error.message}</Paragraph>}
 
         {!isLoading && !error && records.length > 0 && (
-          <DataTable data={records} columns={portfolioTableColumns}>
-            <DataTable.ExpandableRow>
-              {({ row }) => (
-                <Flex padding={16} style={{ borderLeft: "3px solid #6366f1", marginLeft: 8 }}>
-                  <PortfolioStatusItems status={String((row as ResultRecord).latest_status)} filters={filters} />
-                </Flex>
-              )}
-            </DataTable.ExpandableRow>
-          </DataTable>
+          <Flex flexDirection="column" gap={0} style={{ border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, overflow: "hidden" }}>
+            {records.map((r) => (
+              <PortfolioRow key={String(r.latest_status)} record={r} filters={filters} />
+            ))}
+          </Flex>
         )}
       </Flex>
     </Surface>
@@ -754,7 +807,7 @@ export const Dashboard = () => {
 
       <SectionCard
         title="Stale Items"
-        subtitle="Open items with no update in 30+ days — potential risks"
+        subtitle="Open items with no update in 60+ days — potential risks"
         query={staleItemsQuery(filters)}
         tableColumns={staleColumnDefs}
         emptyMessage="No stale items found"
