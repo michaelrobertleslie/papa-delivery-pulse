@@ -3,7 +3,7 @@ import { Flex } from "@dynatrace/strato-components/layouts";
 import { Surface } from "@dynatrace/strato-components/layouts";
 import { Heading, Paragraph, Strong } from "@dynatrace/strato-components/typography";
 import { Select, SelectOption } from "@dynatrace/strato-components/forms";
-import { DataTable, type DataTableColumnDef, DataTableExpandableRowTemplate } from "@dynatrace/strato-components-preview/tables";
+import { DataTable, type DataTableColumnDef } from "@dynatrace/strato-components-preview/tables";
 import { CategoricalBarChart } from "@dynatrace/strato-components/charts";
 import type { ResultRecord } from "@dynatrace-sdk/client-query";
 import { useDql } from "@dynatrace-sdk/react-hooks";
@@ -18,14 +18,92 @@ import {
   activePortfolioQuery,
   portfolioByAssigneeQuery,
   assigneeListQuery,
+  componentListQuery,
   LOOKBACK_DAYS,
   type QueryFilters,
 } from "../queries";
 
+const JIRA_BASE = "https://dt-rnd.atlassian.net/browse/";
+
+/** Render a Jira key as a clickable link opening in a new tab */
+function JiraLink({ value }: { value: unknown }) {
+  const key = String(value ?? "");
+  if (!key) return <span>—</span>;
+  return (
+    <a
+      href={`${JIRA_BASE}${key}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      style={{ color: "#818cf8", textDecoration: "none", fontWeight: 600 }}
+    >
+      {key}
+    </a>
+  );
+}
+
+/** Render an assignee name as a clickable filter trigger */
+function AssigneeCell({ value, onFilter }: { value: unknown; onFilter?: (name: string) => void }) {
+  const name = String(value ?? "");
+  if (!name || name === "null") return <span style={{ opacity: 0.4 }}>Unassigned</span>;
+  return onFilter ? (
+    <a
+      onClick={(e) => { e.stopPropagation(); onFilter(name); }}
+      style={{ color: "#a5b4fc", cursor: "pointer", textDecoration: "none" }}
+      title={`Filter by ${name}`}
+    >
+      {name}
+    </a>
+  ) : (
+    <span>{name}</span>
+  );
+}
+
+/** Parse text and turn URLs into clickable links */
+function RichText({ text }: { text: string }) {
+  const urlRegex = /(https?:\/\/[^\s)<>]+)/g;
+  const parts = text.split(urlRegex);
+  return (
+    <span>
+      {parts.map((part, i) =>
+        urlRegex.test(part) ? (
+          <a
+            key={i}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            style={{ color: "#818cf8", wordBreak: "break-all" }}
+          >
+            {part.length > 80 ? part.slice(0, 77) + "…" : part}
+          </a>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </span>
+  );
+}
+
 type Col = DataTableColumnDef<ResultRecord>;
 
-/* ── Column definitions ─────────────────────────────────────── */
-const changeColumns: Col[] = [
+/* ── Column factory (adds Jira link + clickable assignee) ──── */
+function makeColumns(
+  cols: { id: string; accessor: string; header: string; minWidth?: number }[],
+  onFilterAssignee?: (name: string) => void,
+): Col[] {
+  return cols.map((c) => {
+    if (c.accessor === "key") {
+      return { ...c, cell: ({ value }: { value: unknown }) => <JiraLink value={value} /> };
+    }
+    if (c.accessor === "latest_assignee" && onFilterAssignee) {
+      return { ...c, cell: ({ value }: { value: unknown }) => <AssigneeCell value={value} onFilter={onFilterAssignee} /> };
+    }
+    return c;
+  });
+}
+
+const changeColumnDefs = [
   { id: "key", accessor: "key", header: "Key", minWidth: 130 },
   { id: "latest_summary", accessor: "latest_summary", header: "Summary", minWidth: 260 },
   { id: "latest_assignee", accessor: "latest_assignee", header: "Assignee", minWidth: 140 },
@@ -35,7 +113,7 @@ const changeColumns: Col[] = [
   { id: "latest_sprint", accessor: "latest_sprint", header: "New Sprint" },
 ];
 
-const deliveryColumns: Col[] = [
+const deliveryColumnDefs = [
   { id: "key", accessor: "key", header: "Key", minWidth: 130 },
   { id: "latest_summary", accessor: "latest_summary", header: "Summary", minWidth: 260 },
   { id: "latest_assignee", accessor: "latest_assignee", header: "Assignee", minWidth: 140 },
@@ -44,7 +122,7 @@ const deliveryColumns: Col[] = [
   { id: "latest_fv", accessor: "latest_fv", header: "Fix Version" },
 ];
 
-const staleColumns: Col[] = [
+const staleColumnDefs = [
   { id: "key", accessor: "key", header: "Key", minWidth: 130 },
   { id: "latest_summary", accessor: "latest_summary", header: "Summary", minWidth: 260 },
   { id: "latest_assignee", accessor: "latest_assignee", header: "Assignee", minWidth: 140 },
@@ -53,11 +131,12 @@ const staleColumns: Col[] = [
   { id: "last_seen", accessor: "last_seen", header: "Last Seen" },
 ];
 
-const nearFutureColumns: Col[] = [
+const nearFutureColumnDefs = [
   { id: "key", accessor: "key", header: "Key", minWidth: 130 },
   { id: "latest_summary", accessor: "latest_summary", header: "Summary", minWidth: 260 },
   { id: "latest_assignee", accessor: "latest_assignee", header: "Assignee", minWidth: 140 },
   { id: "earliest_status", accessor: "earliest_status", header: "From" },
+  { id: "latest_status", accessor: "latest_status", header: "To" },
   { id: "latest_fv", accessor: "latest_fv", header: "Fix Version" },
 ];
 
@@ -229,7 +308,6 @@ function RowDetail({ row }: { row: ResultRecord }) {
   const fv = String(row.latest_fv ?? "—");
   const assignee = String(row.latest_assignee ?? "Unassigned");
 
-  // Parse dated entries — typically "DD.MM description" or "YYYY-MM-DD description"
   const lines = details
     .split(/\n/)
     .map((l) => l.trim())
@@ -241,7 +319,7 @@ function RowDetail({ row }: { row: ResultRecord }) {
       <Flex gap={24} flexFlow="wrap" alignItems="center">
         <Flex flexDirection="column" gap={2}>
           <span style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1, opacity: 0.5 }}>Key</span>
-          <Strong>{key}</Strong>
+          <Strong><JiraLink value={key} /></Strong>
         </Flex>
         <Flex flexDirection="column" gap={2}>
           <span style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1, opacity: 0.5 }}>Status</span>
@@ -265,7 +343,9 @@ function RowDetail({ row }: { row: ResultRecord }) {
         {lines.length > 0 ? (
           <Flex flexDirection="column" gap={4} style={{ fontSize: 13, lineHeight: 1.5 }}>
             {lines.map((line, i) => (
-              <span key={i} style={{ opacity: i === 0 ? 1 : 0.7 }}>{line}</span>
+              <span key={i} style={{ opacity: i === 0 ? 1 : 0.7 }}>
+                <RichText text={line} />
+              </span>
             ))}
           </Flex>
         ) : (
@@ -286,6 +366,9 @@ function SectionCard({
   tableColumns,
   emptyMessage = "No changes detected",
   accentColor = "#6366f1",
+  expandable = true,
+  pageSize,
+  onFilterAssignee,
 }: {
   title: string;
   subtitle: string;
@@ -293,9 +376,16 @@ function SectionCard({
   tableColumns: Col[];
   emptyMessage?: string;
   accentColor?: string;
+  expandable?: boolean;
+  pageSize?: number;
+  onFilterAssignee?: (name: string) => void;
 }) {
   const { data, error, isLoading } = useDql({ query });
   const records = data?.records ?? [];
+  const columns = useMemo(
+    () => makeColumns(tableColumns as any, onFilterAssignee),
+    [tableColumns, onFilterAssignee],
+  );
 
   return (
     <Surface>
@@ -347,10 +437,13 @@ function SectionCard({
         )}
 
         {!isLoading && !error && records.length > 0 && (
-          <DataTable data={records} columns={tableColumns}>
-            <DataTable.ExpandableRow>
-              {({ row }) => <RowDetail row={row as ResultRecord} />}
-            </DataTable.ExpandableRow>
+          <DataTable data={records} columns={columns}>
+            {expandable && (
+              <DataTable.ExpandableRow>
+                {({ row }) => <RowDetail row={row as ResultRecord} />}
+              </DataTable.ExpandableRow>
+            )}
+            {pageSize && <DataTable.Pagination defaultPageSize={pageSize} />}
           </DataTable>
         )}
       </Flex>
@@ -367,7 +460,9 @@ function FilterBar({
   setFilters: React.Dispatch<React.SetStateAction<QueryFilters>>;
 }) {
   const { data: assigneeData } = useDql({ query: assigneeListQuery() });
+  const { data: componentData } = useDql({ query: componentListQuery() });
   const assignees = assigneeData?.records ?? [];
+  const components = componentData?.records ?? [];
 
   return (
     <Surface>
@@ -391,7 +486,26 @@ function FilterBar({
             ))}
           </Select>
         </Flex>
-        {filters.executionAssignee && (
+        <Flex flexDirection="column" gap={4} style={{ minWidth: 240 }}>
+          <label style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, opacity: 0.6 }}>
+            Component
+          </label>
+          <Select
+            value={filters.component ?? ""}
+            onChange={(value) => {
+              const val = value && value !== "" ? String(value) : null;
+              setFilters((prev) => ({ ...prev, component: val }));
+            }}
+          >
+            <SelectOption value="">All components</SelectOption>
+            {components.map((c) => (
+              <SelectOption key={String(c.latest_components)} value={String(c.latest_components)}>
+                {String(c.latest_components)} ({String(c.item_count)})
+              </SelectOption>
+            ))}
+          </Select>
+        </Flex>
+        {(filters.executionAssignee || filters.component) && (
           <button
             onClick={() => setFilters({ executionAssignee: null, component: null })}
             style={{
@@ -418,6 +532,10 @@ export const Dashboard = () => {
     executionAssignee: null,
     component: null,
   });
+
+  const handleFilterAssignee = (name: string) => {
+    setFilters((prev) => ({ ...prev, executionAssignee: name }));
+  };
 
   const filterLabel = filters.executionAssignee
     ? `Filtered: ${filters.executionAssignee}`
@@ -452,39 +570,45 @@ export const Dashboard = () => {
         tableColumns={portfolioTableColumns}
         emptyMessage="No PAPA items found"
         accentColor="#6366f1"
+        expandable={false}
       />
 
       <SectionCard
         title="Fix Version & Sprint Changes"
         subtitle="Schedule shifts detected — fix version or sprint changed"
         query={fvSprintChangesQuery(LOOKBACK_DAYS, filters)}
-        tableColumns={changeColumns}
+        tableColumns={changeColumnDefs}
         accentColor="#f59e0b"
+        onFilterAssignee={handleFilterAssignee}
       />
 
       <SectionCard
         title="Delivery Status Changes"
         subtitle="Items that moved status — completed, post-GA, release prep"
         query={deliveryUpdatesQuery(LOOKBACK_DAYS, filters)}
-        tableColumns={deliveryColumns}
+        tableColumns={deliveryColumnDefs}
         accentColor="#22c55e"
+        onFilterAssignee={handleFilterAssignee}
       />
 
       <SectionCard
         title="Entering Implementation"
         subtitle="Items recently moved into Implementation — near future"
         query={nearFutureQuery(LOOKBACK_DAYS, filters)}
-        tableColumns={nearFutureColumns}
+        tableColumns={nearFutureColumnDefs}
         accentColor="#3b82f6"
+        onFilterAssignee={handleFilterAssignee}
       />
 
       <SectionCard
         title="Stale Items"
         subtitle="Open items with no update in 30+ days — potential risks"
         query={staleItemsQuery(filters)}
-        tableColumns={staleColumns}
+        tableColumns={staleColumnDefs}
         emptyMessage="No stale items found"
         accentColor="#ef4444"
+        pageSize={50}
+        onFilterAssignee={handleFilterAssignee}
       />
     </Flex>
   );

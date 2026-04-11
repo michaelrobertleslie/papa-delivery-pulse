@@ -8,10 +8,22 @@ import Colors from "@dynatrace/strato-design-tokens/colors";
 import { useDql } from "@dynatrace-sdk/react-hooks";
 import { allItemsQuery } from "../queries";
 
+const JIRA_BASE = "https://dt-rnd.atlassian.net/browse/";
+
 type Col = DataTableColumnDef<ResultRecord>;
 
 const columns: Col[] = [
-  { id: "key", accessor: "key", header: "Key", minWidth: 130 },
+  {
+    id: "key", accessor: "key", header: "Key", minWidth: 130,
+    cell: ({ value }) => {
+      const key = String(value ?? "");
+      return key ? (
+        <a href={`${JIRA_BASE}${key}`} target="_blank" rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          style={{ color: "#818cf8", textDecoration: "none", fontWeight: 600 }}>{key}</a>
+      ) : <span>—</span>;
+    },
+  },
   { id: "latest_summary", accessor: "latest_summary", header: "Summary", minWidth: 300 },
   { id: "latest_status", accessor: "latest_status", header: "Status", minWidth: 130 },
   { id: "latest_assignee", accessor: "latest_assignee", header: "Assignee", minWidth: 140 },
@@ -19,6 +31,25 @@ const columns: Col[] = [
   { id: "latest_sprint", accessor: "latest_sprint", header: "Sprint", minWidth: 100 },
   { id: "latest_components", accessor: "latest_components", header: "Components", minWidth: 140 },
 ];
+
+/** Parse text and turn URLs into clickable links */
+function RichText({ text }: { text: string }) {
+  const urlRegex = /(https?:\/\/[^\s)<>]+)/g;
+  const parts = text.split(urlRegex);
+  return (
+    <span>
+      {parts.map((part, i) =>
+        urlRegex.test(part) ? (
+          <a key={i} href={part} target="_blank" rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            style={{ color: "#818cf8", wordBreak: "break-all" }}>
+            {part.length > 80 ? part.slice(0, 77) + "…" : part}
+          </a>
+        ) : (<span key={i}>{part}</span>)
+      )}
+    </span>
+  );
+}
 
 function ExplorerRowDetail({ row }: { row: ResultRecord }) {
   const details = String(row.status_details ?? "");
@@ -32,7 +63,7 @@ function ExplorerRowDetail({ row }: { row: ResultRecord }) {
       {lines.length > 0 ? (
         <Flex flexDirection="column" gap={4} style={{ fontSize: 13, lineHeight: 1.5 }}>
           {lines.map((line, i) => (
-            <span key={i} style={{ opacity: i === 0 ? 1 : 0.7 }}>{line}</span>
+            <span key={i} style={{ opacity: i === 0 ? 1 : 0.7 }}><RichText text={line} /></span>
           ))}
         </Flex>
       ) : (
