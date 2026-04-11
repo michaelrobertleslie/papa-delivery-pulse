@@ -14,7 +14,7 @@ type Col = DataTableColumnDef<ResultRecord>;
 
 const columns: Col[] = [
   {
-    id: "key", accessor: "key", header: "Key", minWidth: 130,
+    id: "key", accessor: "key", header: "Key", minWidth: 130, alignment: "center" as const,
     cell: ({ value }) => {
       const key = String(value ?? "");
       return key ? (
@@ -25,10 +25,11 @@ const columns: Col[] = [
     },
   },
   { id: "latest_summary", accessor: "latest_summary", header: "Summary", minWidth: 300 },
-  { id: "latest_status", accessor: "latest_status", header: "Status", minWidth: 130 },
-  { id: "latest_assignee", accessor: "latest_assignee", header: "Assignee", minWidth: 140 },
-  { id: "latest_fv", accessor: "latest_fv", header: "Fix Version", minWidth: 100 },
-  { id: "latest_sprint", accessor: "latest_sprint", header: "Sprint", minWidth: 100 },
+  { id: "latest_status", accessor: "latest_status", header: "Status", minWidth: 130, alignment: "center" as const },
+  { id: "latest_assignee", accessor: "latest_assignee", header: "TEL", minWidth: 140, alignment: "center" as const },
+  { id: "latest_reporter", accessor: "latest_reporter", header: "PM", minWidth: 140, alignment: "center" as const },
+  { id: "latest_fv", accessor: "latest_fv", header: "Fix Version", minWidth: 100, alignment: "center" as const },
+  { id: "latest_sprint", accessor: "latest_sprint", header: "Sprint", minWidth: 100, alignment: "center" as const },
   { id: "latest_components", accessor: "latest_components", header: "Components", minWidth: 140 },
 ];
 

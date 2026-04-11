@@ -101,14 +101,14 @@ type Col = DataTableColumnDef<ResultRecord>;
 
 /* ── Column factory (adds Jira link + clickable assignee) ──── */
 function makeColumns(
-  cols: { id: string; accessor: string; header: string; minWidth?: number }[],
+  cols: { id: string; accessor: string; header: string; minWidth?: number; alignment?: "left" | "center" | "right" }[],
   onFilterAssignee?: (name: string) => void,
 ): Col[] {
   return cols.map((c) => {
     if (c.accessor === "key") {
       return { ...c, cell: ({ value }: { value: unknown }) => <JiraLink value={value} /> };
     }
-    if (c.accessor === "latest_assignee" && onFilterAssignee) {
+    if ((c.accessor === "latest_assignee" || c.accessor === "latest_reporter") && onFilterAssignee) {
       return { ...c, cell: ({ value }: { value: unknown }) => <AssigneeCell value={value} onFilter={onFilterAssignee} /> };
     }
     return c;
@@ -118,7 +118,8 @@ function makeColumns(
 const changeColumnDefs = [
   { id: "key", accessor: "key", header: "Key", minWidth: 130, alignment: "center" as const },
   { id: "latest_summary", accessor: "latest_summary", header: "Summary", minWidth: 260 },
-  { id: "latest_assignee", accessor: "latest_assignee", header: "Assignee", minWidth: 140, alignment: "center" as const },
+  { id: "latest_assignee", accessor: "latest_assignee", header: "TEL", minWidth: 140, alignment: "center" as const },
+  { id: "latest_reporter", accessor: "latest_reporter", header: "PM", minWidth: 140, alignment: "center" as const },
   { id: "earliest_fv", accessor: "earliest_fv", header: "Prev FV", alignment: "center" as const },
   { id: "latest_fv", accessor: "latest_fv", header: "New FV", alignment: "center" as const },
   { id: "earliest_sprint", accessor: "earliest_sprint", header: "Prev Sprint", alignment: "center" as const },
@@ -128,7 +129,8 @@ const changeColumnDefs = [
 const deliveryColumnDefs = [
   { id: "key", accessor: "key", header: "Key", minWidth: 130, alignment: "center" as const },
   { id: "latest_summary", accessor: "latest_summary", header: "Summary", minWidth: 260 },
-  { id: "latest_assignee", accessor: "latest_assignee", header: "Assignee", minWidth: 140, alignment: "center" as const },
+  { id: "latest_assignee", accessor: "latest_assignee", header: "TEL", minWidth: 140, alignment: "center" as const },
+  { id: "latest_reporter", accessor: "latest_reporter", header: "PM", minWidth: 140, alignment: "center" as const },
   { id: "earliest_status", accessor: "earliest_status", header: "From", alignment: "center" as const },
   { id: "latest_status", accessor: "latest_status", header: "To", alignment: "center" as const },
   { id: "latest_fv", accessor: "latest_fv", header: "Fix Version", alignment: "center" as const },
@@ -137,7 +139,8 @@ const deliveryColumnDefs = [
 const staleColumnDefs = [
   { id: "key", accessor: "key", header: "Key", minWidth: 130, alignment: "center" as const },
   { id: "latest_summary", accessor: "latest_summary", header: "Summary", minWidth: 260 },
-  { id: "latest_assignee", accessor: "latest_assignee", header: "Assignee", minWidth: 140, alignment: "center" as const },
+  { id: "latest_assignee", accessor: "latest_assignee", header: "TEL", minWidth: 140, alignment: "center" as const },
+  { id: "latest_reporter", accessor: "latest_reporter", header: "PM", minWidth: 140, alignment: "center" as const },
   { id: "latest_status", accessor: "latest_status", header: "Status", alignment: "center" as const },
   { id: "latest_fv", accessor: "latest_fv", header: "Fix Version", alignment: "center" as const },
   { id: "last_seen", accessor: "last_seen", header: "Last Seen", alignment: "center" as const },
@@ -146,7 +149,8 @@ const staleColumnDefs = [
 const nearFutureColumnDefs = [
   { id: "key", accessor: "key", header: "Key", minWidth: 130, alignment: "center" as const },
   { id: "latest_summary", accessor: "latest_summary", header: "Summary", minWidth: 260 },
-  { id: "latest_assignee", accessor: "latest_assignee", header: "Assignee", minWidth: 140, alignment: "center" as const },
+  { id: "latest_assignee", accessor: "latest_assignee", header: "TEL", minWidth: 140, alignment: "center" as const },
+  { id: "latest_reporter", accessor: "latest_reporter", header: "PM", minWidth: 140, alignment: "center" as const },
   { id: "earliest_status", accessor: "earliest_status", header: "From", alignment: "center" as const },
   { id: "latest_status", accessor: "latest_status", header: "To", alignment: "center" as const },
   { id: "latest_fv", accessor: "latest_fv", header: "Fix Version", alignment: "center" as const },
@@ -464,6 +468,8 @@ function SectionCard({
 }
 
 /* ── Compact Filter Chips ───────────────────────────────────── */
+const ALL = "__all__";
+
 function FilterChips({
   filters,
   setFilters,
@@ -478,36 +484,44 @@ function FilterChips({
 
   return (
     <Flex gap={8} alignItems="center" flexFlow="wrap">
-      <Select
-        value={filters.executionAssignee ?? ""}
-        onChange={(value) => {
-          const val = value && value !== "" ? String(value) : null;
-          setFilters((prev) => ({ ...prev, executionAssignee: val }));
-        }}
-        style={{ minWidth: 180 }}
-      >
-        <SelectOption value="">All assignees</SelectOption>
-        {assignees.map((a) => (
-          <SelectOption key={String(a["Execution Assignee"])} value={String(a["Execution Assignee"])}>
-            {String(a["Execution Assignee"])} ({String(a.item_count)})
-          </SelectOption>
-        ))}
-      </Select>
-      <Select
-        value={filters.component ?? ""}
-        onChange={(value) => {
-          const val = value && value !== "" ? String(value) : null;
-          setFilters((prev) => ({ ...prev, component: val }));
-        }}
-        style={{ minWidth: 180 }}
-      >
-        <SelectOption value="">All components</SelectOption>
-        {components.map((c) => (
-          <SelectOption key={String(c.latest_components)} value={String(c.latest_components)}>
-            {String(c.latest_components)} ({String(c.item_count)})
-          </SelectOption>
-        ))}
-      </Select>
+      <Flex flexDirection="column" gap={2}>
+        <span style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, opacity: 0.5 }}>
+          Execution Assignee
+        </span>
+        <Select
+          value={filters.executionAssignee ?? ALL}
+          onChange={(value) => {
+            const val = value === ALL ? null : String(value);
+            setFilters((prev) => ({ ...prev, executionAssignee: val }));
+          }}
+        >
+          <SelectOption value={ALL}>All assignees</SelectOption>
+          {assignees.map((a) => (
+            <SelectOption key={String(a["Execution Assignee"])} value={String(a["Execution Assignee"])}>
+              {String(a["Execution Assignee"])} ({String(a.item_count)})
+            </SelectOption>
+          ))}
+        </Select>
+      </Flex>
+      <Flex flexDirection="column" gap={2}>
+        <span style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, opacity: 0.5 }}>
+          Component
+        </span>
+        <Select
+          value={filters.component ?? ALL}
+          onChange={(value) => {
+            const val = value === ALL ? null : String(value);
+            setFilters((prev) => ({ ...prev, component: val }));
+          }}
+        >
+          <SelectOption value={ALL}>All components</SelectOption>
+          {components.map((c) => (
+            <SelectOption key={String(c.latest_components)} value={String(c.latest_components)}>
+              {String(c.latest_components)} ({String(c.item_count)})
+            </SelectOption>
+          ))}
+        </Select>
+      </Flex>
       {(filters.executionAssignee || filters.component) && (
         <button
           onClick={() => setFilters({ executionAssignee: null, component: null })}
@@ -520,6 +534,7 @@ function FilterChips({
             cursor: "pointer",
             fontSize: 12,
             fontWeight: 600,
+            alignSelf: "flex-end",
           }}
         >
           ✕ Clear
@@ -538,7 +553,8 @@ function PortfolioStatusItems({ status, filters }: { status: string; filters: Qu
     { id: "key", accessor: "key", header: "Key", minWidth: 120, alignment: "center" as const,
       cell: ({ value }: { value: unknown }) => <JiraLink value={value} /> },
     { id: "latest_summary", accessor: "latest_summary", header: "Summary", minWidth: 260 },
-    { id: "latest_assignee", accessor: "latest_assignee", header: "Assignee", minWidth: 140, alignment: "center" as const },
+    { id: "latest_assignee", accessor: "latest_assignee", header: "TEL", minWidth: 140, alignment: "center" as const },
+    { id: "latest_reporter", accessor: "latest_reporter", header: "PM", minWidth: 140, alignment: "center" as const },
     { id: "latest_fv", accessor: "latest_fv", header: "Fix Version", alignment: "center" as const },
   ], []);
 

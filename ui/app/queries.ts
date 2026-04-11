@@ -67,6 +67,7 @@ fetch bizevents, from:now()-${days}d
     latest_status = last(status),
     latest_summary = last(summary),
     latest_assignee = last(\`Execution Assignee\`),
+    latest_reporter = last(reporter),
     status_details = last(\`Status details\`),
     records = count(),
     by: { key }
@@ -86,6 +87,7 @@ fetch bizevents, from:now()-${days}d
     latest_fv = last(fixVersions),
     latest_summary = last(summary),
     latest_assignee = last(\`Execution Assignee\`),
+    latest_reporter = last(reporter),
     status_details = last(\`Status details\`),
     records = count(),
     by: { key }
@@ -119,6 +121,7 @@ fetch bizevents, from:now()-7d
     latest_fv = last(fixVersions),
     latest_summary = last(summary),
     latest_assignee = last(\`Execution Assignee\`),
+    latest_reporter = last(reporter),
     status_details = last(\`Status details\`),
     by: { key }
 | filter latest_status == "${status}"
@@ -136,6 +139,7 @@ fetch bizevents, from:now()-90d
     latest_summary = last(summary),
     latest_fv = last(fixVersions),
     latest_assignee = last(\`Execution Assignee\`),
+    latest_reporter = last(reporter),
     status_details = last(\`Status details\`),
     by: { key }
 | filter last_seen < now()-30d
@@ -157,6 +161,7 @@ fetch bizevents, from:now()-${days}d
     latest_fv = last(fixVersions),
     latest_summary = last(summary),
     latest_assignee = last(\`Execution Assignee\`),
+    latest_reporter = last(reporter),
     status_details = last(\`Status details\`),
     records = count(),
     by: { key }
@@ -176,6 +181,7 @@ fetch bizevents, from:now()-7d
     latest_sprint = last(Sprint),
     latest_summary = last(summary),
     latest_assignee = last(\`Execution Assignee\`),
+    latest_reporter = last(reporter),
     latest_components = last(components),
     status_details = last(\`Status details\`),
     by: { key }
