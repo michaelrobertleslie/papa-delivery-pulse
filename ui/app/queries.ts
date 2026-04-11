@@ -54,8 +54,8 @@ fetch bizevents, from:now()-1d
     latest_fv = last(fixVersions),
     latest_summary = last(summary),
     by: { key }
-| summarize count(), by: { latest_status }
-| sort count() desc
+| summarize item_count = count(), by: { latest_status }
+| sort item_count desc
 `;
 
 /** Items with no update in 30+ days (stale detection) */
@@ -72,6 +72,7 @@ fetch bizevents, from:now()-90d
 | filter last_seen < now()-30d
 | filter not(matchesValue(latest_status, "Closed"))
 | filter not(matchesValue(latest_status, "Post GA"))
+| filter not(matchesValue(latest_status, "Cancelled"))
 | sort last_seen asc
 `;
 
