@@ -477,8 +477,8 @@ function FilterChips({
   filters: QueryFilters;
   setFilters: React.Dispatch<React.SetStateAction<QueryFilters>>;
 }) {
-  const { data: assigneeData } = useDql({ query: assigneeListQuery() });
-  const { data: componentData } = useDql({ query: componentListQuery() });
+  const { data: assigneeData, error: assigneeError, isLoading: assigneeLoading } = useDql({ query: assigneeListQuery() });
+  const { data: componentData, error: componentError, isLoading: componentLoading } = useDql({ query: componentListQuery() });
   const assignees = assigneeData?.records ?? [];
   const components = componentData?.records ?? [];
 
@@ -488,39 +488,57 @@ function FilterChips({
         <span style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, opacity: 0.5 }}>
           Execution Assignee
         </span>
-        <Select
-          value={filters.executionAssignee ?? ALL}
-          onChange={(value) => {
-            const val = value === ALL ? null : String(value);
-            setFilters((prev) => ({ ...prev, executionAssignee: val }));
-          }}
-        >
-          <SelectOption value={ALL}>All assignees</SelectOption>
-          {assignees.map((a) => (
-            <SelectOption key={String(a["Execution Assignee"])} value={String(a["Execution Assignee"])}>
-              {String(a["Execution Assignee"])} ({String(a.item_count)})
-            </SelectOption>
-          ))}
-        </Select>
+        {assigneeLoading ? (
+          <ProgressCircle size="small" />
+        ) : assigneeError ? (
+          <Paragraph style={{ color: "#f87171", fontSize: 11 }}>Error loading assignees</Paragraph>
+        ) : (
+          <Select
+            value={filters.executionAssignee ?? ALL}
+            onChange={(value) => {
+              const val = value === ALL ? null : String(value);
+              setFilters((prev) => ({ ...prev, executionAssignee: val }));
+            }}
+          >
+            <SelectOption value={ALL}>All assignees ({assignees.reduce((s, a) => s + (Number(a.item_count) || 0), 0)})</SelectOption>
+            {assignees.map((a) => {
+              const name = String(a["Execution Assignee"] ?? "");
+              return (
+                <SelectOption key={name} value={name}>
+                  {name} ({String(a.item_count)})
+                </SelectOption>
+              );
+            })}
+          </Select>
+        )}
       </Flex>
       <Flex flexDirection="column" gap={2}>
         <span style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, opacity: 0.5 }}>
           Component
         </span>
-        <Select
-          value={filters.component ?? ALL}
-          onChange={(value) => {
-            const val = value === ALL ? null : String(value);
-            setFilters((prev) => ({ ...prev, component: val }));
-          }}
-        >
-          <SelectOption value={ALL}>All components</SelectOption>
-          {components.map((c) => (
-            <SelectOption key={String(c.latest_components)} value={String(c.latest_components)}>
-              {String(c.latest_components)} ({String(c.item_count)})
-            </SelectOption>
-          ))}
-        </Select>
+        {componentLoading ? (
+          <ProgressCircle size="small" />
+        ) : componentError ? (
+          <Paragraph style={{ color: "#f87171", fontSize: 11 }}>Error loading components</Paragraph>
+        ) : (
+          <Select
+            value={filters.component ?? ALL}
+            onChange={(value) => {
+              const val = value === ALL ? null : String(value);
+              setFilters((prev) => ({ ...prev, component: val }));
+            }}
+          >
+            <SelectOption value={ALL}>All components ({components.reduce((s, c) => s + (Number(c.item_count) || 0), 0)})</SelectOption>
+            {components.map((c) => {
+              const comp = String(c.latest_components ?? "");
+              return (
+                <SelectOption key={comp} value={comp}>
+                  {comp} ({String(c.item_count)})
+                </SelectOption>
+              );
+            })}
+          </Select>
+        )}
       </Flex>
       {(filters.executionAssignee || filters.component) && (
         <button
@@ -549,20 +567,62 @@ function PortfolioStatusItems({ status, filters }: { status: string; filters: Qu
   const { data, isLoading, error } = useDql({ query: portfolioItemsQuery(status, filters) });
   const records = data?.records ?? [];
 
-  const cols: Col[] = useMemo(() => [
-    { id: "key", accessor: "key", header: "Key", minWidth: 120, alignment: "center" as const,
-      cell: ({ value }: { value: unknown }) => <JiraLink value={value} /> },
-    { id: "latest_summary", accessor: "latest_summary", header: "Summary", minWidth: 260 },
-    { id: "latest_assignee", accessor: "latest_assignee", header: "TEL", minWidth: 140, alignment: "center" as const },
-    { id: "latest_reporter", accessor: "latest_reporter", header: "PM", minWidth: 140, alignment: "center" as const },
-    { id: "latest_fv", accessor: "latest_fv", header: "Fix Version", alignment: "center" as const },
-  ], []);
-
   if (isLoading) return <Flex justifyContent="center" padding={8}><ProgressCircle size="small" /></Flex>;
   if (error) return <Paragraph style={{ color: Colors.Text.Critical.Default, fontSize: 12 }}>Error: {error.message}</Paragraph>;
-  if (records.length === 0) return <Paragraph style={{ opacity: 0.4, fontSize: 12 }}>No items</Paragraph>;
+  if (records.length === 0) return <Paragraph style={{ opacity: 0.4, fontSize: 12 }}>No items in this status</Paragraph>;
 
-  return <DataTable data={records} columns={cols} />;
+  return (
+    <Flex flexDirection="column" gap={0} style={{ width: "100%" }}>
+      {/* Header */}
+      <Flex
+        gap={0}
+        style={{
+          borderBottom: "1px solid rgba(255,255,255,0.1)",
+          padding: "6px 0",
+          fontSize: 10,
+          fontWeight: 700,
+          textTransform: "uppercase",
+          letterSpacing: 1.2,
+          opacity: 0.5,
+        }}
+      >
+        <span style={{ width: 120, flexShrink: 0, textAlign: "center" }}>Key</span>
+        <span style={{ flex: "1 1 auto" }}>Summary</span>
+        <span style={{ width: 140, flexShrink: 0, textAlign: "center" }}>TEL</span>
+        <span style={{ width: 140, flexShrink: 0, textAlign: "center" }}>PM</span>
+        <span style={{ width: 100, flexShrink: 0, textAlign: "center" }}>Fix Version</span>
+      </Flex>
+      {/* Rows */}
+      {records.map((r) => (
+        <Flex
+          key={String(r.key)}
+          gap={0}
+          alignItems="center"
+          style={{
+            borderBottom: "1px solid rgba(255,255,255,0.04)",
+            padding: "8px 0",
+            fontSize: 13,
+          }}
+        >
+          <span style={{ width: 120, flexShrink: 0, textAlign: "center" }}>
+            <JiraLink value={r.key} />
+          </span>
+          <span style={{ flex: "1 1 auto", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {String(r.latest_summary ?? "")}
+          </span>
+          <span style={{ width: 140, flexShrink: 0, textAlign: "center", opacity: r.latest_assignee ? 1 : 0.4 }}>
+            {String(r.latest_assignee ?? "Unassigned")}
+          </span>
+          <span style={{ width: 140, flexShrink: 0, textAlign: "center", opacity: r.latest_reporter ? 1 : 0.4 }}>
+            {String(r.latest_reporter ?? "—")}
+          </span>
+          <span style={{ width: 100, flexShrink: 0, textAlign: "center", opacity: 0.7 }}>
+            {String(r.latest_fv ?? "—")}
+          </span>
+        </Flex>
+      ))}
+    </Flex>
+  );
 }
 
 function PortfolioCard({ filters }: { filters: QueryFilters }) {
