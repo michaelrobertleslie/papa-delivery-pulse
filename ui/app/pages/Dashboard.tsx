@@ -740,8 +740,8 @@ const missingFvColumnDefs = [
   { id: "key", accessor: "key", header: "Key", minWidth: 130, alignment: "center" as const },
   { id: "summary", accessor: "summary", header: "Summary", minWidth: 260 },
   { id: "statusCurrent", accessor: "statusCurrent", header: "Status", minWidth: 140, alignment: "center" as const },
-  { id: "fv.name", accessor: "fv.name", header: "Current FV", minWidth: 120, alignment: "center" as const },
-  { id: "statusUpdateDaysAgo", accessor: "statusUpdateDaysAgo", header: "Days Since Update", minWidth: 140, alignment: "right" as const },
+  { id: "currentFv", accessor: "currentFv", header: "Current FV", minWidth: 120, alignment: "center" as const },
+  { id: "daysSinceUpdate", accessor: "daysSinceUpdate", header: "Days Since Update", minWidth: 140, alignment: "right" as const },
 ];
 
 function DeliveryTimeline() {

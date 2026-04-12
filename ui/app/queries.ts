@@ -259,6 +259,7 @@ fetch bizevents, from: now() - 7d
 | filter statusCurrent != "Closed"
 | dedup key, sort: timestamp desc
 | filter fixVersionDeltaMonths > 0
+| filter fixVersionDeltaMonths <= 6
 | parse fixVersion, "JSON:fv"
 | fieldsFlatten fv, prefix: "fv."
 | parse fixVersionInitial, "JSON:fvi"
