@@ -8,6 +8,7 @@ import type { ResultRecord } from "@dynatrace-sdk/client-query";
 import { useDql } from "@dynatrace-sdk/react-hooks";
 import { ProgressCircle } from "@dynatrace/strato-components/content";
 import Colors from "@dynatrace/strato-design-tokens/colors";
+import { getEnvironmentUrl } from "@dynatrace-sdk/app-environment";
 import {
   userActionVolumeQuery,
   frontendErrorRateQuery,
@@ -568,9 +569,29 @@ function RecentProblems() {
 
 /* ── Main page ──────────────────────────────────────── */
 export const ProductionHealth = () => {
+  const envUrl = getEnvironmentUrl();
+  const envLabel = envUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
+
   return (
     <Flex flexDirection="column" gap={16} padding={16}>
-      <Heading level={2}>Production Health</Heading>
+      <Flex justifyContent="space-between" alignItems="center">
+        <Heading level={2}>Production Health</Heading>
+        <span
+          style={{
+            fontSize: 12,
+            fontWeight: 600,
+            padding: "4px 10px",
+            borderRadius: 4,
+            background: envUrl.includes("apps.dynatrace.com")
+              ? Colors.Charts.Apdex.Good.Default
+              : Colors.Charts.Apdex.Fair.Default,
+            color: "#fff",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {envLabel}
+        </span>
+      </Flex>
       <Paragraph style={{ opacity: 0.6 }}>
         RUM metrics, Web Vitals, and Davis problems for PAPA apps: {PAPA_APP_NAMES.join(", ")}.
       </Paragraph>
