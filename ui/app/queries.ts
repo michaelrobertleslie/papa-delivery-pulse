@@ -280,7 +280,8 @@ fetch bizevents, from: now() - 7d
 | fieldsFlatten fv, prefix: "fv."
 | fieldsAdd currentFv = if(isNull(fv.name), "\u26a0 MUST ADD", else: fv.name)
 | fieldsAdd daysSinceUpdate = if(isNull(statusUpdateDaysAgo), -1, else: statusUpdateDaysAgo)
-| fields key, summary, statusCurrent, currentFv, daysSinceUpdate, executionAssignee
+| fieldsAdd tel = replaceString(arrayFirst(splitString(executionAssignee, "@")), ".", " ")
+| fields key, summary, statusCurrent, currentFv, daysSinceUpdate, tel
 | sort daysSinceUpdate desc
 `;
 
@@ -339,7 +340,8 @@ fetch bizevents, from: now() - 7d
 | fieldsFlatten fv, prefix: "fv."
 | fieldsAdd currentFv = if(isNull(fv.name), "\u26a0 MUST ADD", else: fv.name)
 | fieldsAdd daysSinceUpdate = if(isNull(statusUpdateDaysAgo), -1, else: statusUpdateDaysAgo)
-| fields key, summary, statusCurrent, currentFv, daysSinceUpdate, executionAssignee
+| fieldsAdd tel = replaceString(arrayFirst(splitString(executionAssignee, "@")), ".", " ")
+| fields key, summary, statusCurrent, currentFv, daysSinceUpdate, tel
 | sort daysSinceUpdate desc
 `;
 
