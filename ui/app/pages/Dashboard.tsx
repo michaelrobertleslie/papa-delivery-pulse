@@ -23,6 +23,7 @@ import {
   fixVersionSlippageQuery,
   missingFvAtStartQuery,
   deliveryTimelineQuery,
+  visByFixVersionQuery,
   slippedVisDetailQuery,
   noFvAtStartDetailQuery,
   staleUpdateVisDetailQuery,
@@ -745,9 +746,11 @@ const missingFvColumnDefs = [
 
 function DeliveryTimeline() {
   const { data, isLoading } = useDql({ query: deliveryTimelineQuery() });
+  const [expandedFv, setExpandedFv] = useState<string | null>(null);
+
+  const MONTHS: Record<string, number> = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
 
   const chartData = useMemo(() => {
-    const MONTHS: Record<string, number> = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
     const byFv: Record<string, number> = {};
     for (const r of data?.records ?? []) {
       const fv = String(r["fv.name"] ?? "");
@@ -762,17 +765,65 @@ function DeliveryTimeline() {
       .sort((a, b) => a.sortKey - b.sortKey);
   }, [data]);
 
+  // Determine which FVs are overdue (month end is before today)
+  const now = new Date();
+  const isOverdue = (fvName: string): boolean => {
+    const parts = fvName.match(/^(\w+)\s+(\d{4})$/);
+    if (!parts) return false;
+    const m = MONTHS[parts[1]];
+    const y = Number(parts[2]);
+    if (m === undefined) return false;
+    // FV "Apr 2026" is overdue if we're past April 2026 (i.e. May 2026+)
+    const fvEnd = new Date(y, m + 1, 0); // last day of that month
+    return now > fvEnd;
+  };
+
   return (
     <Surface style={{ flex: "1 1 45%", minWidth: 340 }}>
       <Flex flexDirection="column" gap={12} padding={24}>
         <Heading level={4}>Delivery Timeline</Heading>
-        <Paragraph style={{ opacity: 0.5, fontSize: 12 }}>Active VIs by target fix version — from VI Analyzer</Paragraph>
+        <Paragraph style={{ opacity: 0.5, fontSize: 12 }}>Active VIs by target fix version — click a version to drill down</Paragraph>
         {isLoading ? (
           <Flex justifyContent="center" padding={24}><ProgressCircle /></Flex>
         ) : chartData.length > 0 ? (
-          <CategoricalBarChart data={chartData}>
-            <CategoricalBarChart.Legend hidden />
-          </CategoricalBarChart>
+          <>
+            <CategoricalBarChart data={chartData}>
+              <CategoricalBarChart.Legend hidden />
+            </CategoricalBarChart>
+            <Flex flexDirection="column" gap={0} style={{ marginTop: 4 }}>
+              {chartData.map(({ category, value }) => {
+                const overdue = isOverdue(category);
+                const isExpanded = expandedFv === category;
+                return (
+                  <React.Fragment key={category}>
+                    <Flex
+                      alignItems="center" gap={8}
+                      style={{
+                        padding: "8px 12px", cursor: "pointer",
+                        borderRadius: 6,
+                        background: isExpanded ? "rgba(99,102,241,0.12)" : "transparent",
+                        borderBottom: "1px solid rgba(255,255,255,0.04)",
+                      }}
+                      onClick={() => setExpandedFv(isExpanded ? null : category)}
+                    >
+                      <span style={{ fontSize: 12, opacity: 0.5, width: 16 }}>{isExpanded ? "▼" : "▶"}</span>
+                      <span style={{ fontSize: 13, fontWeight: 600, flex: "1 1 auto", color: overdue ? "#f87171" : "inherit" }}>
+                        {category}{overdue ? " ⚠" : ""}
+                      </span>
+                      <span style={{
+                        fontSize: 11, fontWeight: 700, padding: "2px 10px", borderRadius: 12,
+                        background: overdue ? "rgba(239,68,68,0.15)" : "rgba(99,102,241,0.15)",
+                        color: overdue ? "#f87171" : "#818cf8",
+                      }}>
+                        {value} VI{value !== 1 ? "s" : ""}
+                      </span>
+                    </Flex>
+                    {isExpanded && <HealthDrillDown query={visByFixVersionQuery(category)} />}
+                  </React.Fragment>
+                );
+              })}
+            </Flex>
+          </>
         ) : (
           <Paragraph style={{ opacity: 0.5 }}>No data</Paragraph>
         )}

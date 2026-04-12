@@ -295,6 +295,20 @@ fetch bizevents, from: now() - 7d
     stale_updates = countIf(statusUpdateDaysAgo > 14)
 `;
 
+/** Drill-down: VIs for a specific fix version (for Delivery Timeline click-through) */
+export const visByFixVersionQuery = (fvName: string) => `
+fetch bizevents, from: now() - 7d
+| filter event.provider == "valueincrement.analzyer"
+| filter matchesValue(owningProgram, "Platform Apps")
+| filter statusCurrent != "Closed"
+| dedup key, sort: timestamp desc
+| parse fixVersion, "JSON:fv"
+| fieldsFlatten fv, prefix: "fv."
+| filter fv.name == "${fvName}"
+| fields key, summary, statusCurrent, fv.name, statusUpdateDaysAgo, executionAssignee
+| sort statusCurrent asc, key asc
+`;
+
 /** Drill-down: VIs with fix version slippage (for Health Snapshot click-through) */
 export const slippedVisDetailQuery = () => `
 fetch bizevents, from: now() - 7d
