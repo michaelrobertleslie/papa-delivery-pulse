@@ -848,7 +848,7 @@ function HealthDrillDown({ query }: { query: string }) {
             <span style={{ width: 110, flexShrink: 0 }}><JiraLink value={key} /></span>
             <span style={{ flex: "1 1 auto", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{String(r.summary ?? "")}</span>
             <span style={{ width: 100, flexShrink: 0, textAlign: "center", opacity: 0.6 }}>{String(r.statusCurrent ?? r.status ?? "")}</span>
-            <span style={{ width: 80, flexShrink: 0, textAlign: "center", opacity: 0.6 }}>{String(r["fv.name"] ?? r.fixVersions ?? "—")}</span>
+            <span style={{ width: 80, flexShrink: 0, textAlign: "center", opacity: 0.6 }}>{String(r["fv.name"] ?? r.currentFv ?? r.fixVersions ?? "—")}</span>
           </Flex>
         );
       })}

@@ -278,8 +278,10 @@ fetch bizevents, from: now() - 7d
 | dedup key, sort: timestamp desc
 | parse fixVersion, "JSON:fv"
 | fieldsFlatten fv, prefix: "fv."
-| fields key, summary, statusCurrent, fv.name, statusUpdateDaysAgo
-| sort statusUpdateDaysAgo desc
+| fieldsAdd currentFv = if(isNull(fv.name), "\u26a0 MUST ADD", else: fv.name)
+| fieldsAdd daysSinceUpdate = if(isNull(statusUpdateDaysAgo), -1, else: statusUpdateDaysAgo)
+| fields key, summary, statusCurrent, currentFv, daysSinceUpdate
+| sort daysSinceUpdate desc
 `;
 
 /** Delivery KPI summary — counts for hero cards */
@@ -335,8 +337,10 @@ fetch bizevents, from: now() - 7d
 | dedup key, sort: timestamp desc
 | parse fixVersion, "JSON:fv"
 | fieldsFlatten fv, prefix: "fv."
-| fields key, summary, statusCurrent, fv.name, statusUpdateDaysAgo
-| sort statusUpdateDaysAgo desc
+| fieldsAdd currentFv = if(isNull(fv.name), "\u26a0 MUST ADD", else: fv.name)
+| fieldsAdd daysSinceUpdate = if(isNull(statusUpdateDaysAgo), -1, else: statusUpdateDaysAgo)
+| fields key, summary, statusCurrent, currentFv, daysSinceUpdate
+| sort daysSinceUpdate desc
 `;
 
 /** Drill-down: VIs with stale status updates (>14 days) */
