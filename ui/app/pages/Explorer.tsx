@@ -1,12 +1,13 @@
-import React from "react";
+import React, { useState } from "react";
 import { Flex } from "@dynatrace/strato-components/layouts";
 import { Heading, Paragraph, Strong } from "@dynatrace/strato-components/typography";
+import { Select, SelectOption, SelectContent } from "@dynatrace/strato-components/forms";
 import { DataTable, type DataTableColumnDef } from "@dynatrace/strato-components-preview/tables";
 import type { ResultRecord } from "@dynatrace-sdk/client-query";
 import { ProgressCircle } from "@dynatrace/strato-components/content";
 import Colors from "@dynatrace/strato-design-tokens/colors";
 import { useDql } from "@dynatrace-sdk/react-hooks";
-import { allItemsQuery } from "../queries";
+import { allItemsQuery, portfolioByAssigneeQuery, componentBreakdownQuery, type QueryFilters } from "../queries";
 
 const JIRA_BASE = "https://dt-rnd.atlassian.net/browse/";
 
@@ -76,16 +77,69 @@ function ExplorerRowDetail({ row }: { row: ResultRecord }) {
   );
 }
 
+const ALL = "__all__";
+
 export const Explorer = () => {
-  const { data, error, isLoading } = useDql({ query: allItemsQuery() });
+  const [filters, setFilters] = useState<QueryFilters>({ executionAssignee: null, component: null });
+  const { data, error, isLoading } = useDql({ query: allItemsQuery(filters) });
+  const { data: assigneeData, isLoading: assigneeLoading } = useDql({ query: portfolioByAssigneeQuery() });
+  const { data: componentData, isLoading: componentLoading } = useDql({ query: componentBreakdownQuery() });
   const records = data?.records ?? [];
+  const assignees = assigneeData?.records ?? [];
+  const components = componentData?.records ?? [];
 
   return (
     <Flex flexDirection="column" padding={32} gap={16}>
-      <Heading>VI Explorer</Heading>
-      <Paragraph>
-        All Platform Apps value increments — latest snapshot from Grail. Click a row to see status details.
-      </Paragraph>
+      <Flex justifyContent="space-between" alignItems="flex-start" flexFlow="wrap" gap={16}>
+        <Flex flexDirection="column" gap={4} style={{ flex: "1 1 auto" }}>
+          <Heading>VI Explorer</Heading>
+          <Paragraph style={{ opacity: 0.6 }}>
+            All Platform Apps value increments — latest snapshot from Grail. Click a row to see status details.
+          </Paragraph>
+        </Flex>
+        <Flex gap={8} alignItems="center" flexFlow="wrap">
+          <Flex flexDirection="column" gap={2} style={{ width: 280 }}>
+            <span style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, opacity: 0.5 }}>Assignee</span>
+            {assigneeLoading ? <ProgressCircle size="small" /> : (
+              <Select style={{ width: "100%" }} value={filters.executionAssignee ?? ALL}
+                onChange={(v) => setFilters((p) => ({ ...p, executionAssignee: v === ALL ? null : String(v) }))}>
+                <SelectContent style={{ minWidth: 280 }}>
+                  <SelectOption value={ALL}>All assignees</SelectOption>
+                  {assignees.map((a) => {
+                    const name = String(a.latest_assignee ?? "");
+                    return name ? <SelectOption key={name} value={name}>{name} ({String(a.item_count)})</SelectOption> : null;
+                  })}
+                </SelectContent>
+              </Select>
+            )}
+          </Flex>
+          <Flex flexDirection="column" gap={2} style={{ width: 320 }}>
+            <span style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, opacity: 0.5 }}>Component</span>
+            {componentLoading ? <ProgressCircle size="small" /> : (
+              <Select style={{ width: "100%" }} value={filters.component ?? ALL}
+                onChange={(v) => setFilters((p) => ({ ...p, component: v === ALL ? null : String(v) }))}>
+                <SelectContent style={{ minWidth: 320 }}>
+                  <SelectOption value={ALL}>All components</SelectOption>
+                  {components.map((c) => {
+                    const raw = String(c.latest_components ?? "");
+                    if (!raw) return null;
+                    const label = raw.replace(/^\["?|"?\]$/g, "").replace(/","/g, ", ");
+                    return <SelectOption key={raw} value={raw}>{label} ({String(c.item_count)})</SelectOption>;
+                  })}
+                </SelectContent>
+              </Select>
+            )}
+          </Flex>
+          {(filters.executionAssignee || filters.component) && (
+            <button onClick={() => setFilters({ executionAssignee: null, component: null })}
+              style={{
+                background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)",
+                borderRadius: 16, padding: "4px 12px", color: "#f87171", cursor: "pointer",
+                fontSize: 12, fontWeight: 600, alignSelf: "flex-end",
+              }}>✕ Clear</button>
+          )}
+        </Flex>
+      </Flex>
 
       {isLoading && (
         <Flex justifyContent="center" padding={16}>
