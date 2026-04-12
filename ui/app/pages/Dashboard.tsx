@@ -907,15 +907,26 @@ function RallyMilestones() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const records = data?.records ?? [];
 
-  // Group by program
+  // Group by program, sorted latest rally first
   const byProgram = useMemo(() => {
+    const MONTHS: Record<string, number> = { January: 0, February: 1, March: 2, April: 3, May: 4, June: 5, July: 6, August: 7, September: 8, October: 9, November: 10, December: 11, Jan: 0, Feb: 1, Mar: 2, Apr: 3, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
     const groups: Record<string, typeof records> = {};
     for (const r of records) {
       const prog = String(r["ms_program"] ?? "Unknown");
       if (!groups[prog]) groups[prog] = [];
       groups[prog].push(r);
     }
-    return groups;
+    // Extract year + month from program name for chronological sort
+    const sortKey = (name: string): number => {
+      const m = name.match(/(\d{4})\s+(\w+)/);
+      if (m) return Number(m[1]) * 12 + (MONTHS[m[2]] ?? 0);
+      const m2 = name.match(/(\w+)\s+(\d{4})/);
+      if (m2) return Number(m2[2]) * 12 + (MONTHS[m2[1]] ?? 0);
+      return 0;
+    };
+    const sorted = Object.keys(groups).sort((a, b) => sortKey(b) - sortKey(a));
+    const result: [string, typeof records][] = sorted.map((k) => [k, groups[k]]);
+    return result;
   }, [records]);
 
   return (
@@ -935,7 +946,7 @@ function RallyMilestones() {
           <Paragraph style={{ opacity: 0.5, fontStyle: "italic" }}>No rally milestones linked to PAPA VIs</Paragraph>
         ) : (
           <Flex flexDirection="column" gap={16}>
-            {Object.entries(byProgram).map(([program, milestones]) => (
+            {byProgram.map(([program, milestones]) => (
               <Flex key={program} flexDirection="column" gap={8}>
                 <Heading level={5} style={{ color: "#14b8a6" }}>{program}</Heading>
                 <Flex flexDirection="column" gap={0} style={{ border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, overflow: "hidden" }}>
