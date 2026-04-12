@@ -45,13 +45,13 @@ function postFilterLines(f?: QueryFilters): string {
   return lines;
 }
 
-/** Build filter lines for VI Analyzer queries (executionAssignee is an email) */
+/** Build filter lines for VI Analyzer queries (executionAssignee is an email).
+ *  Uses a lookup against daily snapshots to resolve display name → email. */
 function viFilterLines(f?: QueryFilters): string {
   let lines = "";
   if (f?.executionAssignee) {
-    // Convert display name "First Last" → "first.last" to match email prefix
-    const emailPrefix = f.executionAssignee.trim().toLowerCase().replace(/\s+/g, ".");
-    lines += `\n| filter contains(executionAssignee, "${emailPrefix}")`;
+    lines += `\n| lookup [fetch bizevents, from: now() - 7d | filter event.type == "jira_daily.valueincrement" | filter matchesValue(\`owning Program\`, "Platform Apps") | sort timestamp desc | dedup key | fieldsAdd assigneeName = \`Execution Assignee\` | fields key, assigneeName], sourceField:key, lookupField:key, prefix:"jira."`;
+    lines += `\n| filter jira.assigneeName == "${f.executionAssignee}"`;
   }
   return lines;
 }
@@ -267,8 +267,8 @@ export const fixVersionSlippageQuery = (f?: QueryFilters) => `
 fetch bizevents, from: now() - 7d
 | filter event.provider == "valueincrement.analzyer"
 | filter matchesValue(owningProgram, "Platform Apps")
-| filter statusCurrent != "Closed"${viFilterLines(f)}
-| dedup key, sort: timestamp desc
+| filter statusCurrent != "Closed"
+| dedup key, sort: timestamp desc${viFilterLines(f)}
 | filter fixVersionDeltaMonths > 0
 | filter fixVersionDeltaMonths <= 6
 | parse fixVersion, "JSON:fv"
@@ -285,8 +285,8 @@ fetch bizevents, from: now() - 7d
 | filter event.provider == "valueincrement.analzyer"
 | filter matchesValue(owningProgram, "Platform Apps")
 | filter statusCurrent != "Closed"
-| filter fixVersionSetOnImplementationStart == false${viFilterLines(f)}
-| dedup key, sort: timestamp desc
+| filter fixVersionSetOnImplementationStart == false
+| dedup key, sort: timestamp desc${viFilterLines(f)}
 | parse fixVersion, "JSON:fv"
 | fieldsFlatten fv, prefix: "fv."
 | fieldsAdd currentFv = if(isNull(fv.name), "\u26a0 MUST ADD", else: fv.name)
@@ -301,8 +301,8 @@ export const deliveryKpiQuery = (f?: QueryFilters) => `
 fetch bizevents, from: now() - 7d
 | filter event.provider == "valueincrement.analzyer"
 | filter matchesValue(owningProgram, "Platform Apps")
-| filter statusCurrent != "Closed"${viFilterLines(f)}
-| dedup key, sort: timestamp desc
+| filter statusCurrent != "Closed"
+| dedup key, sort: timestamp desc${viFilterLines(f)}
 | summarize
     total = count(),
     slipped = countIf(fixVersionDeltaMonths > 0 AND fixVersionDeltaMonths <= 6),
@@ -331,8 +331,8 @@ fetch bizevents, from: now() - 7d
 | filter matchesValue(owningProgram, "Platform Apps")
 | filter statusCurrent != "Closed"
 | filter fixVersionDeltaMonths > 0
-| filter fixVersionDeltaMonths <= 6${viFilterLines(f)}
-| dedup key, sort: timestamp desc
+| filter fixVersionDeltaMonths <= 6
+| dedup key, sort: timestamp desc${viFilterLines(f)}
 | parse fixVersion, "JSON:fv"
 | fieldsFlatten fv, prefix: "fv."
 | fields key, summary, statusCurrent, fixVersionDeltaMonths, fv.name
@@ -345,8 +345,8 @@ fetch bizevents, from: now() - 7d
 | filter event.provider == "valueincrement.analzyer"
 | filter matchesValue(owningProgram, "Platform Apps")
 | filter statusCurrent != "Closed"
-| filter fixVersionSetOnImplementationStart == false${viFilterLines(f)}
-| dedup key, sort: timestamp desc
+| filter fixVersionSetOnImplementationStart == false
+| dedup key, sort: timestamp desc${viFilterLines(f)}
 | parse fixVersion, "JSON:fv"
 | fieldsFlatten fv, prefix: "fv."
 | fieldsAdd currentFv = if(isNull(fv.name), "\u26a0 MUST ADD", else: fv.name)
@@ -362,8 +362,8 @@ fetch bizevents, from: now() - 7d
 | filter event.provider == "valueincrement.analzyer"
 | filter matchesValue(owningProgram, "Platform Apps")
 | filter statusCurrent != "Closed"
-| filter statusUpdateDaysAgo > 14${viFilterLines(f)}
-| dedup key, sort: timestamp desc
+| filter statusUpdateDaysAgo > 14
+| dedup key, sort: timestamp desc${viFilterLines(f)}
 | parse fixVersion, "JSON:fv"
 | fieldsFlatten fv, prefix: "fv."
 | fields key, summary, statusCurrent, fv.name, statusUpdateDaysAgo
