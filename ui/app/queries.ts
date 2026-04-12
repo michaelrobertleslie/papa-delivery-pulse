@@ -203,29 +203,114 @@ fetch bizevents, from:now()-7d
 
 // ─── Production Health Queries ────────────────────────────────
 
-/** PAPA app names — used to scope production health to our services */
-export const PAPA_APPS = [
-  "Dashboards",
-  "Notebooks",
-  "Smartscape",
-  "Launcher",
-  "Search Service",
-  "AppShell",
-  "Dock",
-  "Segments",
-] as const;
+/**
+ * PAPA app frontend names — maps to `frontend.name` in RUM data.
+ * These are the Dynatrace app IDs as they appear in Real User Monitoring.
+ * In this demo env these may not exist; in production they map to real apps.
+ */
+export const PAPA_FRONTENDS: Record<string, string> = {
+  "dynatrace.dashboards": "Dashboards",
+  "dynatrace.notebooks": "Notebooks",
+  "dynatrace.smartscape": "Smartscape",
+  "dynatrace.launcher": "Launcher",
+  "dynatrace.search": "Search Service",
+  "dynatrace.appshell": "AppShell",
+  "dynatrace.dock": "Dock",
+  "dynatrace.segments": "Segments",
+};
 
-/** Build a DQL filter matching any PAPA app name in a given field using matchesPhrase */
-function papaServiceFilter(field: string): string {
-  return PAPA_APPS.map((app) => `matchesPhrase(${field}, "${app}")`).join(" or ");
+/** All PAPA frontend.name values */
+const PAPA_FRONTEND_NAMES = Object.keys(PAPA_FRONTENDS);
+
+/** Human-readable display names */
+export const PAPA_APP_NAMES = Object.values(PAPA_FRONTENDS);
+
+/** Build a DQL filter matching any PAPA frontend */
+function papaFrontendFilter(field = "frontend.name"): string {
+  return PAPA_FRONTEND_NAMES.map((f) => `${field} == "${f}"`).join(" or ");
 }
 
 /** Build a DQL filter matching any PAPA app name in the problem's affected_entity_names */
 function papaProblemFilter(): string {
-  return PAPA_APPS.map((app) => `contains(affected_entity_names, "${app}")`).join(" or ");
+  return PAPA_APP_NAMES.map((app) => `contains(affected_entity_names, "${app}")`).join(" or ");
 }
 
-/** Active Davis problems grouped by category — scoped to PAPA apps */
+// ── RUM: User actions, errors, sessions ──
+
+/** User action volume per PAPA app (last 2h) */
+export const userActionVolumeQuery = () => `
+timeseries actions = sum(dt.frontend.user_action.count), from:now()-2h, by:{frontend.name}
+| filter ${papaFrontendFilter()}
+| fieldsAdd total_actions = arraySum(actions)
+| sort total_actions desc
+`;
+
+/** Error rate per PAPA app (last 2h) */
+export const frontendErrorRateQuery = () => `
+timeseries {
+  errors = sum(dt.frontend.error.count),
+  requests = sum(dt.frontend.request.count)
+}, from:now()-2h, by:{frontend.name}
+| filter ${papaFrontendFilter()}
+| fieldsAdd total_errors = arraySum(errors), total_requests = arraySum(requests)
+| fieldsAdd error_rate_pct = if(total_requests > 0, (total_errors * 100.0) / total_requests, else: 0.0)
+| sort error_rate_pct desc
+| fields frontend.name, error_rate_pct, total_errors, total_requests
+`;
+
+/** Frontend error trend per app (last 24h, 1h buckets) */
+export const frontendErrorTrendQuery = () => `
+timeseries errors = sum(dt.frontend.error.count), from:now()-24h, by:{frontend.name}, interval: 1h
+| filter ${papaFrontendFilter()}
+`;
+
+/** Active sessions per PAPA app (last 2h) */
+export const activeSessionsQuery = () => `
+timeseries sessions = sum(dt.frontend.session.active.estimated_count), from:now()-2h, by:{frontend.name}
+| filter ${papaFrontendFilter()}
+| fieldsAdd total_sessions = arraySum(sessions)
+| sort total_sessions desc
+`;
+
+/** Top JavaScript exceptions per PAPA app (last 2h) */
+export const topExceptionsQuery = () => `
+fetch user.events, from:now()-2h
+| filter error.type == "exception"
+| filter ${papaFrontendFilter()}
+| summarize exception_count = count(), affected_sessions = countDistinct(dt.rum.session.id), by: { frontend.name, exception.message }
+| sort exception_count desc
+| limit 20
+`;
+
+/** Request error breakdown per PAPA app (last 2h) */
+export const requestErrorsQuery = () => `
+fetch user.events, from:now()-2h
+| filter error.type == "request"
+| filter ${papaFrontendFilter()}
+| summarize error_count = count(), affected_sessions = countDistinct(dt.rum.session.id), by: { frontend.name, error.display_name }
+| sort error_count desc
+| limit 20
+`;
+
+// ── Core Web Vitals ──
+
+/** Web Vitals summary per PAPA app (p75, last 2h) */
+export const webVitalsSummaryQuery = () => `
+fetch user.events, from:now()-2h
+| filter ${papaFrontendFilter()}
+| filter isNotNull(web_vitals.largest_contentful_paint) or isNotNull(web_vitals.interaction_to_next_paint) or isNotNull(web_vitals.cumulative_layout_shift)
+| summarize
+    lcp_p75 = percentile(web_vitals.largest_contentful_paint, 75),
+    inp_p75 = percentile(web_vitals.interaction_to_next_paint, 75),
+    cls_p75 = percentile(web_vitals.cumulative_layout_shift, 75),
+    samples = count(),
+    by: { frontend.name }
+| sort frontend.name asc
+`;
+
+// ── Davis Problems ──
+
+/** Active Davis problems for PAPA apps — by category */
 export const activeProblemsByCategoryQuery = () => `
 fetch events, from:now()-24h
 | filter event.kind == "DAVIS_PROBLEM"
@@ -241,37 +326,6 @@ fetch events, from:now()-7d
 | filter event.kind == "DAVIS_PROBLEM"
 | filter ${papaProblemFilter()}
 | makeTimeseries problem_count = count(), interval: 1d
-`;
-
-/** Top PAPA services by error rate (last 1 hour, >1% error rate, min 10 requests) */
-export const topErrorServicesQuery = () => `
-timeseries {
-  total = sum(dt.service.request.count),
-  failures = sum(dt.service.request.failure_count)
-}, from:now()-1h, by:{dt.service.name}
-| filter ${papaServiceFilter("dt.service.name")}
-| fieldsAdd total_reqs = arraySum(total), total_fails = arraySum(failures)
-| fieldsAdd error_pct = (total_fails * 100.0) / total_reqs
-| filter total_reqs > 10
-| filter error_pct > 1
-| sort error_pct desc
-| limit 15
-| fields dt.service.name, error_pct, total_reqs, total_fails
-`;
-
-/** PAPA service health overview — throughput, error %, p95 latency */
-export const serviceHealthOverviewQuery = () => `
-timeseries {
-  total = sum(dt.service.request.count),
-  failures = sum(dt.service.request.failure_count),
-  p95 = percentile(dt.service.request.response_time, 95)
-}, from:now()-1h, by:{dt.service.name}
-| filter ${papaServiceFilter("dt.service.name")}
-| fieldsAdd total_reqs = arraySum(total), total_fails = arraySum(failures), p95_ms = arrayAvg(p95) / 1000
-| fieldsAdd error_pct = (total_fails * 100.0) / total_reqs
-| sort total_reqs desc
-| limit 20
-| fields dt.service.name, total_reqs, error_pct, p95_ms
 `;
 
 /** Recent active problems for PAPA apps — detail table */
