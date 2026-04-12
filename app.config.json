@@ -3,7 +3,7 @@
   "environmentUrl": "https://umsaywsjuo.dev.apps.dynatracelabs.com/",
   "app": {
     "name": "PAPA Delivery Pulse",
-    "version": "1.6.9",
+    "version": "1.7.0",
     "description": "PAPA delivery health dashboard powered by Grail bizevents",
     "id": "my.papa.delivery.pulse",
     "scopes": [

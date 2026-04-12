@@ -119,6 +119,13 @@ function makeColumns(
     if (c.accessor === "key") {
       return { ...c, cell: ({ value }: { value: unknown }) => <JiraLink value={value} /> };
     }
+    if (c.accessor === "tel" && onFilterAssignee) {
+      return { ...c, cell: ({ value }: { value: unknown }) => {
+        const raw = String(value ?? "");
+        const name = raw.split(/[\s-]+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+        return <AssigneeCell value={name || "—"} onFilter={onFilterAssignee} />;
+      }};
+    }
     if (c.accessor === "tel") {
       return { ...c, cell: ({ value }: { value: unknown }) => {
         const raw = String(value ?? "");
@@ -1070,7 +1077,7 @@ function RallyMilestones() {
   );
 }
 
-function MilestoneTracking() {
+function MilestoneTracking({ onFilterAssignee }: { onFilterAssignee?: (name: string) => void }) {
   const slippage = useDql({ query: fixVersionSlippageQuery() });
   const missingFv = useDql({ query: missingFvAtStartQuery() });
 
@@ -1079,8 +1086,8 @@ function MilestoneTracking() {
     [],
   );
   const missingFvColumns = useMemo(
-    () => makeColumns(missingFvColumnDefs as any),
-    [],
+    () => makeColumns(missingFvColumnDefs as any, onFilterAssignee),
+    [onFilterAssignee],
   );
 
   return (
@@ -1227,7 +1234,7 @@ export const Dashboard = () => {
       <ChartsRow filters={filters} />
 
       {/* Milestone / Delivery Tracking */}
-      <MilestoneTracking />
+      <MilestoneTracking onFilterAssignee={handleFilterAssignee} />
 
       {/* Detail sections */}
       <PortfolioCard filters={filters} />
