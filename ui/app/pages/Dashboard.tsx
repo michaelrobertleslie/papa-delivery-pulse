@@ -23,6 +23,11 @@ import {
   fixVersionSlippageQuery,
   missingFvAtStartQuery,
   deliveryTimelineQuery,
+  slippedVisDetailQuery,
+  noFvAtStartDetailQuery,
+  staleUpdateVisDetailQuery,
+  rallyMilestonesQuery,
+  rallyMilestoneVisQuery,
   LOOKBACK_DAYS,
   type QueryFilters,
 } from "../queries";
@@ -776,39 +781,218 @@ function DeliveryTimeline() {
   );
 }
 
+function HealthDrillDown({ query }: { query: string }) {
+  const { data, isLoading } = useDql({ query });
+  const records = data?.records ?? [];
+
+  if (isLoading) return <Flex justifyContent="center" padding={8}><ProgressCircle size="small" /></Flex>;
+  if (records.length === 0) return <Paragraph style={{ opacity: 0.4, fontSize: 12 }}>No items</Paragraph>;
+
+  return (
+    <Flex flexDirection="column" gap={0} style={{ width: "100%", marginTop: 4 }}>
+      {records.map((r) => {
+        const key = String(r.key ?? "");
+        return (
+          <Flex key={key} gap={8} alignItems="center" style={{ padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,0.04)", fontSize: 12 }}>
+            <span style={{ width: 110, flexShrink: 0 }}><JiraLink value={key} /></span>
+            <span style={{ flex: "1 1 auto", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{String(r.summary ?? "")}</span>
+            <span style={{ width: 100, flexShrink: 0, textAlign: "center", opacity: 0.6 }}>{String(r.statusCurrent ?? r.status ?? "")}</span>
+            <span style={{ width: 80, flexShrink: 0, textAlign: "center", opacity: 0.6 }}>{String(r["fv.name"] ?? r.fixVersions ?? "—")}</span>
+          </Flex>
+        );
+      })}
+    </Flex>
+  );
+}
+
 function SlippageSummary() {
   const { data, isLoading } = useDql({ query: deliveryKpiQuery() });
+  const [expanded, setExpanded] = useState<string | null>(null);
   const rec = data?.records?.[0];
   const total = Number(rec?.total) || 0;
   const slipped = Number(rec?.slipped) || 0;
   const noFv = Number(rec?.no_fv_at_start) || 0;
   const staleUpdates = Number(rec?.stale_updates) || 0;
 
+  const rows: { id: string; label: string; count: number; color: (n: number) => string; query: string }[] = [
+    { id: "total", label: "Active VIs tracked", count: total, color: () => "inherit", query: "" },
+    { id: "slipped", label: "Fix version slipped", count: slipped, color: (n) => n > 3 ? "#ef4444" : n > 0 ? "#eab308" : "#22c55e", query: slippedVisDetailQuery() },
+    { id: "no_fv", label: "No FV at implementation start", count: noFv, color: (n) => n > 5 ? "#ef4444" : n > 0 ? "#eab308" : "#22c55e", query: noFvAtStartDetailQuery() },
+    { id: "stale", label: "Status update >14 days ago", count: staleUpdates, color: (n) => n > 5 ? "#ef4444" : n > 0 ? "#eab308" : "#22c55e", query: staleUpdateVisDetailQuery() },
+  ];
+
   return (
     <Surface style={{ flex: "1 1 45%", minWidth: 340 }}>
       <Flex flexDirection="column" gap={12} padding={24}>
         <Heading level={4}>Delivery Health Snapshot</Heading>
-        <Paragraph style={{ opacity: 0.5, fontSize: 12 }}>From VI Analyzer — lifecycle signals for active VIs</Paragraph>
+        <Paragraph style={{ opacity: 0.5, fontSize: 12 }}>From VI Analyzer — click a row to see the issues</Paragraph>
         {isLoading ? (
           <Flex justifyContent="center" padding={24}><ProgressCircle /></Flex>
         ) : (
-          <Flex flexDirection="column" gap={8}>
-            <Flex justifyContent="space-between" style={{ padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-              <span style={{ fontSize: 13 }}>Active VIs tracked</span>
-              <Strong>{total}</Strong>
-            </Flex>
-            <Flex justifyContent="space-between" style={{ padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-              <span style={{ fontSize: 13, color: slipped > 3 ? "#ef4444" : slipped > 0 ? "#eab308" : "#22c55e" }}>Fix version slipped</span>
-              <Strong style={{ color: slipped > 3 ? "#ef4444" : slipped > 0 ? "#eab308" : "#22c55e" }}>{slipped}</Strong>
-            </Flex>
-            <Flex justifyContent="space-between" style={{ padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-              <span style={{ fontSize: 13, color: noFv > 5 ? "#ef4444" : noFv > 0 ? "#eab308" : "#22c55e" }}>No FV at implementation start</span>
-              <Strong style={{ color: noFv > 5 ? "#ef4444" : noFv > 0 ? "#eab308" : "#22c55e" }}>{noFv}</Strong>
-            </Flex>
-            <Flex justifyContent="space-between" style={{ padding: "8px 0" }}>
-              <span style={{ fontSize: 13, color: staleUpdates > 5 ? "#ef4444" : staleUpdates > 0 ? "#eab308" : "#22c55e" }}>Status update &gt;14 days ago</span>
-              <Strong style={{ color: staleUpdates > 5 ? "#ef4444" : staleUpdates > 0 ? "#eab308" : "#22c55e" }}>{staleUpdates}</Strong>
-            </Flex>
+          <Flex flexDirection="column" gap={0}>
+            {rows.map((row) => {
+              const c = row.color(row.count);
+              const isOpen = expanded === row.id;
+              const clickable = row.query && row.count > 0;
+              return (
+                <Flex key={row.id} flexDirection="column">
+                  <button
+                    type="button"
+                    disabled={!clickable}
+                    onClick={() => clickable && setExpanded(isOpen ? null : row.id)}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      padding: "10px 4px",
+                      borderBottom: "1px solid rgba(255,255,255,0.06)",
+                      background: isOpen ? "rgba(99,102,241,0.06)" : "transparent",
+                      border: "none",
+                      borderBlockEnd: "1px solid rgba(255,255,255,0.06)",
+                      cursor: clickable ? "pointer" : "default",
+                      color: "inherit",
+                      fontSize: 13,
+                      fontFamily: "inherit",
+                      width: "100%",
+                      textAlign: "left",
+                    }}
+                  >
+                    <span style={{ color: c }}>
+                      {clickable && <span style={{ opacity: 0.4, fontSize: 10, marginRight: 6 }}>{isOpen ? "▼" : "▶"}</span>}
+                      {row.label}
+                    </span>
+                    <Strong style={{ color: c }}>{row.count}</Strong>
+                  </button>
+                  {isOpen && row.query && (
+                    <Flex padding={8} style={{ borderLeft: "3px solid #6366f1", marginLeft: 8, marginBottom: 4 }}>
+                      <HealthDrillDown query={row.query} />
+                    </Flex>
+                  )}
+                </Flex>
+              );
+            })}
+          </Flex>
+        )}
+      </Flex>
+    </Surface>
+  );
+}
+
+function MilestoneVisDetail({ milestoneKey }: { milestoneKey: string }) {
+  const { data, isLoading } = useDql({ query: rallyMilestoneVisQuery(milestoneKey) });
+  const records = data?.records ?? [];
+
+  if (isLoading) return <Flex justifyContent="center" padding={8}><ProgressCircle size="small" /></Flex>;
+  if (records.length === 0) return <Paragraph style={{ opacity: 0.4, fontSize: 12 }}>No linked VIs found</Paragraph>;
+
+  return (
+    <Flex flexDirection="column" gap={0} style={{ width: "100%" }}>
+      {records.map((r) => {
+        const key = String(r.key ?? "");
+        return (
+          <Flex key={key} gap={8} alignItems="center" style={{ padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,0.04)", fontSize: 12 }}>
+            <span style={{ width: 110, flexShrink: 0 }}><JiraLink value={key} /></span>
+            <span style={{ flex: "1 1 auto", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{String(r.summary ?? "")}</span>
+            <span style={{ width: 110, flexShrink: 0, textAlign: "center", opacity: 0.6 }}>{String(r.status ?? "")}</span>
+            <span style={{ width: 80, flexShrink: 0, textAlign: "center", opacity: 0.6 }}>{String(r.fixVersions ?? "—")}</span>
+          </Flex>
+        );
+      })}
+    </Flex>
+  );
+}
+
+function RallyMilestones() {
+  const { data, isLoading } = useDql({ query: rallyMilestonesQuery() });
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const records = data?.records ?? [];
+
+  // Group by program
+  const byProgram = useMemo(() => {
+    const groups: Record<string, typeof records> = {};
+    for (const r of records) {
+      const prog = String(r["ms_program"] ?? "Unknown");
+      if (!groups[prog]) groups[prog] = [];
+      groups[prog].push(r);
+    }
+    return groups;
+  }, [records]);
+
+  return (
+    <Surface>
+      <Flex flexDirection="column" gap={12} padding={24}>
+        <Flex alignItems="center" gap={12}>
+          <span style={{ width: 4, height: 28, borderRadius: 2, background: "#14b8a6", flexShrink: 0 }} />
+          <Flex flexDirection="column" gap={2}>
+            <Heading level={3}>Rally Milestones</Heading>
+            <Paragraph style={{ opacity: 0.6, fontSize: 13 }}>Rally milestones that Platform Apps VIs contribute to — click to see linked VIs</Paragraph>
+          </Flex>
+        </Flex>
+
+        {isLoading ? (
+          <Flex justifyContent="center" padding={16}><ProgressCircle /></Flex>
+        ) : records.length === 0 ? (
+          <Paragraph style={{ opacity: 0.5, fontStyle: "italic" }}>No rally milestones linked to PAPA VIs</Paragraph>
+        ) : (
+          <Flex flexDirection="column" gap={16}>
+            {Object.entries(byProgram).map(([program, milestones]) => (
+              <Flex key={program} flexDirection="column" gap={8}>
+                <Heading level={5} style={{ color: "#14b8a6" }}>{program}</Heading>
+                <Flex flexDirection="column" gap={0} style={{ border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, overflow: "hidden" }}>
+                  {milestones.map((m) => {
+                    const msKey = String(m["link.key"] ?? "");
+                    const progress = Math.round(Number(m["ms_progress"]) || 0);
+                    const viCount = Number(m["vi_count"]) || 0;
+                    const isOpen = expanded === msKey;
+                    const progressColor = progress >= 100 ? "#22c55e" : progress >= 50 ? "#eab308" : "#ef4444";
+
+                    return (
+                      <Flex key={msKey} flexDirection="column">
+                        <button
+                          type="button"
+                          onClick={() => setExpanded(isOpen ? null : msKey)}
+                          style={{
+                            display: "flex", alignItems: "center", gap: 12,
+                            padding: "12px 16px", background: isOpen ? "rgba(20,184,166,0.06)" : "transparent",
+                            border: "none", borderBottom: "1px solid rgba(255,255,255,0.06)",
+                            cursor: "pointer", width: "100%", textAlign: "left",
+                            color: "inherit", fontSize: 13, fontFamily: "inherit",
+                          }}
+                        >
+                          <span style={{ opacity: 0.4, fontSize: 10, width: 12 }}>{isOpen ? "▼" : "▶"}</span>
+                          {/* Progress bar */}
+                          <span style={{ width: 60, height: 6, borderRadius: 3, background: "rgba(255,255,255,0.08)", overflow: "hidden", flexShrink: 0 }}>
+                            <span style={{ display: "block", height: "100%", width: `${Math.min(100, progress)}%`, background: progressColor, borderRadius: 3 }} />
+                          </span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: progressColor, width: 40, flexShrink: 0 }}>{progress}%</span>
+                          <span style={{ flex: "1 1 auto", fontWeight: 500 }}>{String(m["ms_summary"] ?? "")}</span>
+                          <a
+                            href={`${JIRA_BASE}${msKey}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            style={{ color: "#818cf8", textDecoration: "none", fontSize: 11, flexShrink: 0 }}
+                          >
+                            {msKey} ↗
+                          </a>
+                          <span style={{
+                            background: "rgba(20,184,166,0.2)", borderRadius: 12,
+                            padding: "2px 10px", fontSize: 11, fontWeight: 700, color: "#5eead4", flexShrink: 0,
+                          }}>
+                            {viCount} VIs
+                          </span>
+                        </button>
+                        {isOpen && (
+                          <Flex padding={16} style={{ borderLeft: "3px solid #14b8a6", marginLeft: 16 }}>
+                            <MilestoneVisDetail milestoneKey={msKey} />
+                          </Flex>
+                        )}
+                      </Flex>
+                    );
+                  })}
+                </Flex>
+              </Flex>
+            ))}
           </Flex>
         )}
       </Flex>
@@ -902,6 +1086,9 @@ function MilestoneTracking() {
           )}
         </Flex>
       </Surface>
+
+      {/* Rally Milestones */}
+      <RallyMilestones />
     </>
   );
 }

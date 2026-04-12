@@ -263,6 +263,82 @@ fetch bizevents, from: now() - 7d
     stale_updates = countIf(statusUpdateDaysAgo > 14)
 `;
 
+/** Drill-down: VIs with fix version slippage (for Health Snapshot click-through) */
+export const slippedVisDetailQuery = () => `
+fetch bizevents, from: now() - 7d
+| filter event.provider == "valueincrement.analzyer"
+| filter matchesValue(owningProgram, "Platform Apps")
+| filter statusCurrent != "Closed"
+| filter fixVersionDeltaMonths > 0
+| dedup key, sort: timestamp desc
+| parse fixVersion, "JSON:fv"
+| fieldsFlatten fv, prefix: "fv."
+| fields key, summary, statusCurrent, fixVersionDeltaMonths, fv.name
+| sort fixVersionDeltaMonths desc
+`;
+
+/** Drill-down: VIs missing fix version at implementation start */
+export const noFvAtStartDetailQuery = () => `
+fetch bizevents, from: now() - 7d
+| filter event.provider == "valueincrement.analzyer"
+| filter matchesValue(owningProgram, "Platform Apps")
+| filter statusCurrent != "Closed"
+| filter fixVersionSetOnImplementationStart == false
+| dedup key, sort: timestamp desc
+| parse fixVersion, "JSON:fv"
+| fieldsFlatten fv, prefix: "fv."
+| fields key, summary, statusCurrent, fv.name, statusUpdateDaysAgo
+| sort statusUpdateDaysAgo desc
+`;
+
+/** Drill-down: VIs with stale status updates (>14 days) */
+export const staleUpdateVisDetailQuery = () => `
+fetch bizevents, from: now() - 7d
+| filter event.provider == "valueincrement.analzyer"
+| filter matchesValue(owningProgram, "Platform Apps")
+| filter statusCurrent != "Closed"
+| filter statusUpdateDaysAgo > 14
+| dedup key, sort: timestamp desc
+| parse fixVersion, "JSON:fv"
+| fieldsFlatten fv, prefix: "fv."
+| fields key, summary, statusCurrent, fv.name, statusUpdateDaysAgo
+| sort statusUpdateDaysAgo desc
+`;
+
+/** Rally milestones that PAPA VIs contribute to */
+export const rallyMilestonesQuery = () => `
+fetch bizevents, from: now() - 7d
+| filter event.provider == "jira_daily_snapshot"
+| filter matchesValue(\`owning Program\`, "Platform Apps")
+| filter issuetype == "ValueIncrement"
+| dedup key, sort: timestamp desc
+| fieldsAdd nonEmptyIssueLinks = if(arraySize(issuelinks) == 0, "{\\\"type\\\":\\\"fake\\\",\\\"key\\\":\\\"0\\\"}", else: issuelinks)
+| fieldsAdd parsed_links = arrayFlatten(parse(concat("[", nonEmptyIssueLinks, "]"), "JSON_ARRAY:json"))
+| expand parsed_links
+| fieldsFlatten parsed_links, prefix: "link."
+| filter link.type == "enables"
+| lookup [fetch bizevents, from: now() - 30d | filter event.type == "milestone.status" | dedup key, sort: timestamp desc], sourceField:link.key, lookupField:key, fields: { ms_summary = summary, ms_program = programName, ms_progress = progress }
+| filter isNotNull(ms_summary)
+| summarize vi_count = countDistinct(key), by: { link.key, ms_summary, ms_program, ms_progress }
+| sort ms_program desc, ms_progress asc
+`;
+
+/** VIs linked to a specific rally milestone */
+export const rallyMilestoneVisQuery = (milestoneKey: string) => `
+fetch bizevents, from: now() - 7d
+| filter event.provider == "jira_daily_snapshot"
+| filter matchesValue(\`owning Program\`, "Platform Apps")
+| filter issuetype == "ValueIncrement"
+| dedup key, sort: timestamp desc
+| fieldsAdd nonEmptyIssueLinks = if(arraySize(issuelinks) == 0, "{\\\"type\\\":\\\"fake\\\",\\\"key\\\":\\\"0\\\"}", else: issuelinks)
+| fieldsAdd parsed_links = arrayFlatten(parse(concat("[", nonEmptyIssueLinks, "]"), "JSON_ARRAY:json"))
+| expand parsed_links
+| fieldsFlatten parsed_links, prefix: "link."
+| filter link.type == "enables" AND link.key == "${milestoneKey}"
+| fields key, summary, status, fixVersions, \`Execution Assignee\`
+| sort status asc, key asc
+`;
+
 // ─── Production Health Queries ────────────────────────────────
 
 /**
