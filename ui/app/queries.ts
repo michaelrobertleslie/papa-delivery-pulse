@@ -46,7 +46,7 @@ function postFilterLines(f?: QueryFilters): string {
 }
 
 /** Shared lookup subquery to resolve Jira display name from daily snapshots */
-const JIRA_NAME_LOOKUP = '| lookup [fetch bizevents, from: now() - 7d | filter event.type == "jira_daily.valueincrement" | filter matchesValue(`owning Program`, "Platform Apps") | sort timestamp desc | dedup key | fieldsAdd assigneeName = `Execution Assignee` | fields key, assigneeName], sourceField:key, lookupField:key, prefix:"jn."';
+const JIRA_NAME_LOOKUP = '| lookup [fetch bizevents, from: now() - 7d | filter event.type == "jira_daily.valueincrement" OR event.type == "jira_daily.priorityindicator" | filter matchesValue(`owning Program`, "Platform Apps") | sort timestamp desc | dedup key | fieldsAdd assigneeName = `Execution Assignee` | fields key, assigneeName], sourceField:key, lookupField:key, prefix:"jn."';
 
 /** Build filter lines for VI Analyzer queries (executionAssignee is an email).
  *  Uses a lookup against daily snapshots to resolve display name → email. */
@@ -278,7 +278,8 @@ fetch bizevents, from: now() - 7d
 | fieldsFlatten fv, prefix: "fv."
 | parse fixVersionInitial, "JSON:fvi"
 | fieldsFlatten fvi, prefix: "fvi."
-| fields key, summary, statusCurrent, fixVersionDeltaMonths, fvi.name, fv.name, statusUpdateDaysAgo
+| fieldsAdd originalFv = fvi.name, currentFv = fv.name
+| fields key, summary, statusCurrent, fixVersionDeltaMonths, originalFv, currentFv, statusUpdateDaysAgo
 | sort fixVersionDeltaMonths desc
 `;
 
@@ -341,7 +342,8 @@ fetch bizevents, from: now() - 7d
 | dedup key, sort: timestamp desc${viFilterLines(f)}
 | parse fixVersion, "JSON:fv"
 | fieldsFlatten fv, prefix: "fv."
-| fields key, summary, statusCurrent, fixVersionDeltaMonths, fv.name
+| fieldsAdd currentFv = fv.name
+| fields key, summary, statusCurrent, fixVersionDeltaMonths, currentFv
 | sort fixVersionDeltaMonths desc
 `;
 

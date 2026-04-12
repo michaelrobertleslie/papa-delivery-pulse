@@ -124,7 +124,7 @@ function makeColumns(
         const raw = String(value ?? "");
         // Title-case only if from email (lowercase); Jira names already formatted
         const name = raw.includes(" ") && raw[0] === raw[0].toLowerCase()
-          ? raw.split(/\s+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")
+          ? raw.split(/\s+/).map((w) => w.split("-").map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join("-")).join(" ")
           : raw;
         return <AssigneeCell value={name || "—"} onFilter={onFilterAssignee} />;
       }};
@@ -133,7 +133,7 @@ function makeColumns(
       return { ...c, cell: ({ value }: { value: unknown }) => {
         const raw = String(value ?? "");
         const name = raw.includes(" ") && raw[0] === raw[0].toLowerCase()
-          ? raw.split(/\s+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")
+          ? raw.split(/\s+/).map((w) => w.split("-").map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join("-")).join(" ")
           : raw;
         return <span>{name || "—"}</span>;
       }};
@@ -750,8 +750,8 @@ const slippageColumnDefs = [
   { id: "key", accessor: "key", header: "Key", minWidth: 130, alignment: "center" as const },
   { id: "summary", accessor: "summary", header: "Summary", minWidth: 260 },
   { id: "statusCurrent", accessor: "statusCurrent", header: "Status", minWidth: 140, alignment: "center" as const },
-  { id: "fvi.name", accessor: "fvi.name", header: "Original FV", minWidth: 120, alignment: "center" as const },
-  { id: "fv.name", accessor: "fv.name", header: "Current FV", minWidth: 120, alignment: "center" as const },
+  { id: "originalFv", accessor: "originalFv", header: "Original FV", minWidth: 120, alignment: "center" as const },
+  { id: "currentFv", accessor: "currentFv", header: "Current FV", minWidth: 120, alignment: "center" as const },
   { id: "fixVersionDeltaMonths", accessor: "fixVersionDeltaMonths", header: "Slipped (months)", minWidth: 130, alignment: "right" as const },
 ];
 
