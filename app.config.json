@@ -3,13 +3,15 @@
   "environmentUrl": "https://umsaywsjuo.dev.apps.dynatracelabs.com/",
   "app": {
     "name": "PAPA Delivery Pulse",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "description": "PAPA delivery health dashboard powered by Grail bizevents",
     "id": "my.papa.delivery.pulse",
     "scopes": [
       { "name": "storage:logs:read", "comment": "default template" },
       { "name": "storage:buckets:read", "comment": "default template" },
-      { "name": "storage:bizevents:read", "comment": "read jira_daily.valueincrement bizevents" }
+      { "name": "storage:bizevents:read", "comment": "read jira_daily.valueincrement bizevents" },
+      { "name": "storage:events:read", "comment": "read Davis problems and events" },
+      { "name": "storage:metrics:read", "comment": "read service RED metrics" }
     ]
   }
 }

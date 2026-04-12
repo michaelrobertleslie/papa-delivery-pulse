@@ -201,3 +201,60 @@ fetch bizevents, from:now()-7d
 | sort item_count desc
 `;
 
+// ─── Production Health Queries ────────────────────────────────
+
+/** Active Davis problems grouped by category */
+export const activeProblemsByCategoryQuery = () => `
+fetch events, from:now()-24h
+| filter event.kind == "DAVIS_PROBLEM"
+| filter event.status == "ACTIVE"
+| summarize problem_count = count(), by: { event.category }
+| sort problem_count desc
+`;
+
+/** Problem trend — opened problems per day over last 7 days */
+export const problemTrendQuery = () => `
+fetch events, from:now()-7d
+| filter event.kind == "DAVIS_PROBLEM"
+| makeTimeseries problem_count = count(), interval: 1d
+`;
+
+/** Top services by error rate (last 1 hour, >1% error rate, min 10 requests) */
+export const topErrorServicesQuery = () => `
+timeseries {
+  total = sum(dt.service.request.count),
+  failures = sum(dt.service.request.failure_count)
+}, from:now()-1h, by:{dt.service.name}
+| fieldsAdd total_reqs = arraySum(total), total_fails = arraySum(failures)
+| fieldsAdd error_pct = (total_fails * 100.0) / total_reqs
+| filter total_reqs > 10
+| filter error_pct > 1
+| sort error_pct desc
+| limit 15
+| fields dt.service.name, error_pct, total_reqs, total_fails
+`;
+
+/** Service health overview — throughput, error %, p95 latency for busiest services */
+export const serviceHealthOverviewQuery = () => `
+timeseries {
+  total = sum(dt.service.request.count),
+  failures = sum(dt.service.request.failure_count),
+  p95 = percentile(dt.service.request.response_time, 95)
+}, from:now()-1h, by:{dt.service.name}
+| fieldsAdd total_reqs = arraySum(total), total_fails = arraySum(failures), p95_ms = arrayAvg(p95) / 1000
+| fieldsAdd error_pct = (total_fails * 100.0) / total_reqs
+| filter total_reqs > 100
+| sort total_reqs desc
+| limit 20
+| fields dt.service.name, total_reqs, error_pct, p95_ms
+`;
+
+/** Recent active problems — detail table */
+export const recentProblemsQuery = () => `
+fetch events, from:now()-24h
+| filter event.kind == "DAVIS_PROBLEM"
+| filter event.status == "ACTIVE"
+| fields display_id, title, event.category, timestamp
+| sort timestamp desc
+| limit 25
+`;

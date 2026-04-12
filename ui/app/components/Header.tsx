@@ -13,6 +13,9 @@ export const Header = () => {
         <AppHeader.NavItem as={Link} to="/explorer">
           VI Explorer
         </AppHeader.NavItem>
+        <AppHeader.NavItem as={Link} to="/health">
+          Production Health
+        </AppHeader.NavItem>
       </AppHeader.NavItems>
     </AppHeader>
   );
