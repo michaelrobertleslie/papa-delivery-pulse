@@ -259,7 +259,7 @@ function HeroStats({ filters }: { filters: QueryFilters }) {
   const fvChanges = useDql({ query: fvSprintChangesQuery(LOOKBACK_DAYS, filters) });
   const delivery = useDql({ query: deliveryUpdatesQuery(LOOKBACK_DAYS, filters) });
   const stale = useDql({ query: staleItemsQuery(filters) });
-  const dkpi = useDql({ query: deliveryKpiQuery() });
+  const dkpi = useDql({ query: deliveryKpiQuery(filters) });
 
   const totalItems = portfolio.data?.records?.reduce(
     (sum, r) => sum + (Number(r.item_count) || 0), 0
@@ -871,8 +871,8 @@ function HealthDrillDown({ query }: { query: string }) {
   );
 }
 
-function SlippageSummary() {
-  const { data, isLoading } = useDql({ query: deliveryKpiQuery() });
+function SlippageSummary({ filters }: { filters?: QueryFilters }) {
+  const { data, isLoading } = useDql({ query: deliveryKpiQuery(filters) });
   const [expanded, setExpanded] = useState<string | null>(null);
   const rec = data?.records?.[0];
   const total = Number(rec?.total) || 0;
@@ -882,9 +882,9 @@ function SlippageSummary() {
 
   const rows: { id: string; label: string; count: number; color: (n: number) => string; query: string }[] = [
     { id: "total", label: "Active VIs tracked", count: total, color: () => "inherit", query: "" },
-    { id: "slipped", label: "Fix version slipped", count: slipped, color: (n) => n > 3 ? "#ef4444" : n > 0 ? "#eab308" : "#22c55e", query: slippedVisDetailQuery() },
-    { id: "no_fv", label: "No FV at implementation start", count: noFv, color: (n) => n > 5 ? "#ef4444" : n > 0 ? "#eab308" : "#22c55e", query: noFvAtStartDetailQuery() },
-    { id: "stale", label: "Status update >14 days ago", count: staleUpdates, color: (n) => n > 5 ? "#ef4444" : n > 0 ? "#eab308" : "#22c55e", query: staleUpdateVisDetailQuery() },
+    { id: "slipped", label: "Fix version slipped", count: slipped, color: (n) => n > 3 ? "#ef4444" : n > 0 ? "#eab308" : "#22c55e", query: slippedVisDetailQuery(filters) },
+    { id: "no_fv", label: "No FV at implementation start", count: noFv, color: (n) => n > 5 ? "#ef4444" : n > 0 ? "#eab308" : "#22c55e", query: noFvAtStartDetailQuery(filters) },
+    { id: "stale", label: "Status update >14 days ago", count: staleUpdates, color: (n) => n > 5 ? "#ef4444" : n > 0 ? "#eab308" : "#22c55e", query: staleUpdateVisDetailQuery(filters) },
   ];
 
   return (
@@ -1077,9 +1077,9 @@ function RallyMilestones() {
   );
 }
 
-function MilestoneTracking({ onFilterAssignee }: { onFilterAssignee?: (name: string) => void }) {
-  const slippage = useDql({ query: fixVersionSlippageQuery() });
-  const missingFv = useDql({ query: missingFvAtStartQuery() });
+function MilestoneTracking({ filters, onFilterAssignee }: { filters?: QueryFilters; onFilterAssignee?: (name: string) => void }) {
+  const slippage = useDql({ query: fixVersionSlippageQuery(filters) });
+  const missingFv = useDql({ query: missingFvAtStartQuery(filters) });
 
   const slippageColumns = useMemo(
     () => makeColumns(slippageColumnDefs as any),
@@ -1095,7 +1095,7 @@ function MilestoneTracking({ onFilterAssignee }: { onFilterAssignee?: (name: str
       {/* Row: Timeline + Health snapshot */}
       <Flex gap={16} style={{ width: "100%" }} flexFlow="wrap">
         <DeliveryTimeline />
-        <SlippageSummary />
+        <SlippageSummary filters={filters} />
       </Flex>
 
       {/* Fix Version Slippage table */}
@@ -1234,7 +1234,7 @@ export const Dashboard = () => {
       <ChartsRow filters={filters} />
 
       {/* Milestone / Delivery Tracking */}
-      <MilestoneTracking onFilterAssignee={handleFilterAssignee} />
+      <MilestoneTracking filters={filters} onFilterAssignee={handleFilterAssignee} />
 
       {/* Detail sections */}
       <PortfolioCard filters={filters} />

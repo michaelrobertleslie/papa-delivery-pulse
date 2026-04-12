@@ -45,6 +45,17 @@ function postFilterLines(f?: QueryFilters): string {
   return lines;
 }
 
+/** Build filter lines for VI Analyzer queries (executionAssignee is an email) */
+function viFilterLines(f?: QueryFilters): string {
+  let lines = "";
+  if (f?.executionAssignee) {
+    // Convert display name "First Last" → "first.last" to match email prefix
+    const emailPrefix = f.executionAssignee.trim().toLowerCase().replace(/\s+/g, ".");
+    lines += `\n| filter contains(executionAssignee, "${emailPrefix}")`;
+  }
+  return lines;
+}
+
 /** Component breakdown for filter dropdown — uses aliased fields (same pattern as portfolioByAssigneeQuery which works via useDql) */
 export const componentBreakdownQuery = () => `
 fetch bizevents, from:now()-7d
@@ -252,11 +263,11 @@ fetch bizevents, from: now() - 7d
 `;
 
 /** Fix version slippage — VIs whose fix version moved (delta > 0) */
-export const fixVersionSlippageQuery = () => `
+export const fixVersionSlippageQuery = (f?: QueryFilters) => `
 fetch bizevents, from: now() - 7d
 | filter event.provider == "valueincrement.analzyer"
 | filter matchesValue(owningProgram, "Platform Apps")
-| filter statusCurrent != "Closed"
+| filter statusCurrent != "Closed"${viFilterLines(f)}
 | dedup key, sort: timestamp desc
 | filter fixVersionDeltaMonths > 0
 | filter fixVersionDeltaMonths <= 6
@@ -269,12 +280,12 @@ fetch bizevents, from: now() - 7d
 `;
 
 /** VIs missing fix version at implementation start */
-export const missingFvAtStartQuery = () => `
+export const missingFvAtStartQuery = (f?: QueryFilters) => `
 fetch bizevents, from: now() - 7d
 | filter event.provider == "valueincrement.analzyer"
 | filter matchesValue(owningProgram, "Platform Apps")
 | filter statusCurrent != "Closed"
-| filter fixVersionSetOnImplementationStart == false
+| filter fixVersionSetOnImplementationStart == false${viFilterLines(f)}
 | dedup key, sort: timestamp desc
 | parse fixVersion, "JSON:fv"
 | fieldsFlatten fv, prefix: "fv."
@@ -286,11 +297,11 @@ fetch bizevents, from: now() - 7d
 `;
 
 /** Delivery KPI summary — counts for hero cards */
-export const deliveryKpiQuery = () => `
+export const deliveryKpiQuery = (f?: QueryFilters) => `
 fetch bizevents, from: now() - 7d
 | filter event.provider == "valueincrement.analzyer"
 | filter matchesValue(owningProgram, "Platform Apps")
-| filter statusCurrent != "Closed"
+| filter statusCurrent != "Closed"${viFilterLines(f)}
 | dedup key, sort: timestamp desc
 | summarize
     total = count(),
@@ -314,13 +325,13 @@ fetch bizevents, from: now() - 7d
 `;
 
 /** Drill-down: VIs with fix version slippage (for Health Snapshot click-through) */
-export const slippedVisDetailQuery = () => `
+export const slippedVisDetailQuery = (f?: QueryFilters) => `
 fetch bizevents, from: now() - 7d
 | filter event.provider == "valueincrement.analzyer"
 | filter matchesValue(owningProgram, "Platform Apps")
 | filter statusCurrent != "Closed"
 | filter fixVersionDeltaMonths > 0
-| filter fixVersionDeltaMonths <= 6
+| filter fixVersionDeltaMonths <= 6${viFilterLines(f)}
 | dedup key, sort: timestamp desc
 | parse fixVersion, "JSON:fv"
 | fieldsFlatten fv, prefix: "fv."
@@ -329,12 +340,12 @@ fetch bizevents, from: now() - 7d
 `;
 
 /** Drill-down: VIs missing fix version at implementation start */
-export const noFvAtStartDetailQuery = () => `
+export const noFvAtStartDetailQuery = (f?: QueryFilters) => `
 fetch bizevents, from: now() - 7d
 | filter event.provider == "valueincrement.analzyer"
 | filter matchesValue(owningProgram, "Platform Apps")
 | filter statusCurrent != "Closed"
-| filter fixVersionSetOnImplementationStart == false
+| filter fixVersionSetOnImplementationStart == false${viFilterLines(f)}
 | dedup key, sort: timestamp desc
 | parse fixVersion, "JSON:fv"
 | fieldsFlatten fv, prefix: "fv."
@@ -346,12 +357,12 @@ fetch bizevents, from: now() - 7d
 `;
 
 /** Drill-down: VIs with stale status updates (>14 days) */
-export const staleUpdateVisDetailQuery = () => `
+export const staleUpdateVisDetailQuery = (f?: QueryFilters) => `
 fetch bizevents, from: now() - 7d
 | filter event.provider == "valueincrement.analzyer"
 | filter matchesValue(owningProgram, "Platform Apps")
 | filter statusCurrent != "Closed"
-| filter statusUpdateDaysAgo > 14
+| filter statusUpdateDaysAgo > 14${viFilterLines(f)}
 | dedup key, sort: timestamp desc
 | parse fixVersion, "JSON:fv"
 | fieldsFlatten fv, prefix: "fv."
