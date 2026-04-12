@@ -14,6 +14,7 @@ import {
   topErrorServicesQuery,
   serviceHealthOverviewQuery,
   recentProblemsQuery,
+  PAPA_APPS,
 } from "../queries";
 
 type Col = DataTableColumnDef<ResultRecord>;
@@ -294,7 +295,18 @@ function RecentProblems() {
           </span>
         ),
       },
-      { id: "title", accessor: "title", header: "Title", minWidth: 320 },
+      { id: "title", accessor: "title", header: "Title", minWidth: 280 },
+      {
+        id: "entity",
+        accessor: "affected_entity_names",
+        header: "Affected Entity",
+        minWidth: 180,
+        cell: ({ value }: { value: unknown }) => (
+          <span style={{ display: "flex", alignItems: "center", height: "100%" }}>
+            {String(value ?? "")}
+          </span>
+        ),
+      },
       {
         id: "category",
         accessor: "event.category",
@@ -349,7 +361,7 @@ export const ProductionHealth = () => {
     <Flex flexDirection="column" gap={16} padding={16}>
       <Heading level={2}>Production Health</Heading>
       <Paragraph style={{ opacity: 0.6 }}>
-        Live Davis problems, service error rates, and latency across the environment.
+        Davis problems and service metrics scoped to PAPA apps: {PAPA_APPS.join(", ")}.
       </Paragraph>
 
       {/* Row 1: Problem summary + category chart */}
