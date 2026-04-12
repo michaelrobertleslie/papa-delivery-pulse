@@ -7,7 +7,7 @@ import type { ResultRecord } from "@dynatrace-sdk/client-query";
 import { ProgressCircle } from "@dynatrace/strato-components/content";
 import Colors from "@dynatrace/strato-design-tokens/colors";
 import { useDql } from "@dynatrace-sdk/react-hooks";
-import { allItemsQuery, portfolioByAssigneeQuery, componentBreakdownQuery, type QueryFilters } from "../queries";
+import { allItemsQuery, portfolioByAssigneeQuery, componentBreakdownQuery, statusBreakdownQuery, type QueryFilters } from "../queries";
 
 const JIRA_BASE = "https://dt-rnd.atlassian.net/browse/";
 
@@ -80,13 +80,15 @@ function ExplorerRowDetail({ row }: { row: ResultRecord }) {
 const ALL = "__all__";
 
 export const Explorer = () => {
-  const [filters, setFilters] = useState<QueryFilters>({ executionAssignee: null, component: null });
+  const [filters, setFilters] = useState<QueryFilters>({ executionAssignee: null, component: null, statuses: null });
   const { data, error, isLoading } = useDql({ query: allItemsQuery(filters) });
   const { data: assigneeData, isLoading: assigneeLoading } = useDql({ query: portfolioByAssigneeQuery() });
   const { data: componentData, isLoading: componentLoading } = useDql({ query: componentBreakdownQuery() });
+  const { data: statusData, isLoading: statusLoading } = useDql({ query: statusBreakdownQuery() });
   const records = data?.records ?? [];
   const assignees = assigneeData?.records ?? [];
   const components = componentData?.records ?? [];
+  const statuses = statusData?.records ?? [];
 
   return (
     <Flex flexDirection="column" padding={32} gap={16}>
@@ -98,6 +100,20 @@ export const Explorer = () => {
           </Paragraph>
         </Flex>
         <Flex gap={8} alignItems="center" flexFlow="wrap">
+          <Flex flexDirection="column" gap={2} style={{ width: 280 }}>
+            <span style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, opacity: 0.5 }}>Status</span>
+            {statusLoading ? <ProgressCircle size="small" /> : (
+              <Select multiple style={{ width: "100%" }} value={filters.statuses ?? []}
+                onChange={(vals: string[]) => setFilters((p) => ({ ...p, statuses: vals.length > 0 ? vals : null }))}>
+                <SelectContent style={{ minWidth: 280 }}>
+                  {statuses.map((s) => {
+                    const name = String(s.latest_status ?? "");
+                    return name ? <SelectOption key={name} value={name}>{name} ({String(s.item_count)})</SelectOption> : null;
+                  })}
+                </SelectContent>
+              </Select>
+            )}
+          </Flex>
           <Flex flexDirection="column" gap={2} style={{ width: 280 }}>
             <span style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, opacity: 0.5 }}>Assignee</span>
             {assigneeLoading ? <ProgressCircle size="small" /> : (
@@ -130,8 +146,8 @@ export const Explorer = () => {
               </Select>
             )}
           </Flex>
-          {(filters.executionAssignee || filters.component) && (
-            <button onClick={() => setFilters({ executionAssignee: null, component: null })}
+          {(filters.executionAssignee || filters.component || (filters.statuses && filters.statuses.length > 0)) && (
+            <button onClick={() => setFilters({ executionAssignee: null, component: null, statuses: null })}
               style={{
                 background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)",
                 borderRadius: 16, padding: "4px 12px", color: "#f87171", cursor: "pointer",

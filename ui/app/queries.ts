@@ -10,16 +10,37 @@ export const LOOKBACK_DAYS = 14;
 export interface QueryFilters {
   executionAssignee?: string | null;
   component?: string | null;
+  statuses?: string[] | null;
 }
 
-/** Build filter lines from optional filters */
+/** Build pre-summarize filter lines from optional filters */
 function filterLines(f?: QueryFilters): string {
   let lines = "";
   if (f?.executionAssignee) {
     lines += `\n| filter \`Execution Assignee\` == "${f.executionAssignee}"`;
   }
   if (f?.component) {
-    lines += `\n| filter matchesValue(components, "*${f.component}*")`;
+    // components field stores JSON arrays like ["Name"]; parse to avoid quote-escaping issues
+    let names: string[];
+    try {
+      const parsed = JSON.parse(f.component);
+      names = Array.isArray(parsed) ? parsed : [f.component];
+    } catch {
+      names = [f.component.replace(/^\["|"\]$/g, "")];
+    }
+    names.forEach((n) => {
+      lines += `\n| filter contains(components, "${n}")`;
+    });
+  }
+  return lines;
+}
+
+/** Build post-summarize filter lines (e.g. status filter on latest_status) */
+function postFilterLines(f?: QueryFilters): string {
+  let lines = "";
+  if (f?.statuses && f.statuses.length > 0) {
+    const vals = f.statuses.map((s) => `"${s}"`).join(", ");
+    lines += `\n| filter in(latest_status, array(${vals}))`;
   }
   return lines;
 }
@@ -36,6 +57,17 @@ fetch bizevents, from:now()-7d
 | filter isNotNull(latest_components)
 | filter latest_components != "[]"
 | summarize item_count = count(), by: { latest_components }
+| sort item_count desc
+`;
+
+/** Status breakdown for filter dropdown */
+export const statusBreakdownQuery = () => `
+fetch bizevents, from:now()-7d
+| filter event.type == "jira_daily.valueincrement"
+| filter matchesValue(\`owning Program\`, "Platform Apps")
+| sort timestamp desc
+| summarize latest_status = last(status), by: { key }
+| summarize item_count = count(), by: { latest_status }
 | sort item_count desc
 `;
 
@@ -171,7 +203,7 @@ fetch bizevents, from:now()-7d
     latest_reporter = last(reporter),
     latest_components = last(components),
     status_details = last(\`Status details\`),
-    by: { key }
+    by: { key }${postFilterLines(f)}
 | sort latest_status asc, key asc
 `;
 
