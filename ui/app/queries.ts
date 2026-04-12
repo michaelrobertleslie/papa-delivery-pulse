@@ -203,6 +203,68 @@ fetch bizevents, from:now()-7d
 
 // ─── Production Health Queries ────────────────────────────────
 
+// ─── Milestone / Delivery Tracking (from valueincrement.analzyer) ──
+
+/** Fix version delivery timeline — VIs grouped by target fix version with status breakdown */
+export const deliveryTimelineQuery = () => `
+fetch bizevents, from: now() - 7d
+| filter event.provider == "valueincrement.analzyer"
+| filter matchesValue(owningProgram, "Platform Apps")
+| filter statusCurrent != "Closed"
+| dedup key, sort: timestamp desc
+| parse fixVersion, "JSON:fv"
+| fieldsFlatten fv, prefix: "fv."
+| filter isNotNull(fv.name)
+| summarize vi_count = count(), by: {fv.name, statusCurrent}
+| sort fv.name asc, statusCurrent asc
+`;
+
+/** Fix version slippage — VIs whose fix version moved (delta > 0) */
+export const fixVersionSlippageQuery = () => `
+fetch bizevents, from: now() - 7d
+| filter event.provider == "valueincrement.analzyer"
+| filter matchesValue(owningProgram, "Platform Apps")
+| filter statusCurrent != "Closed"
+| dedup key, sort: timestamp desc
+| filter fixVersionDeltaMonths > 0
+| parse fixVersion, "JSON:fv"
+| fieldsFlatten fv, prefix: "fv."
+| parse fixVersionInitial, "JSON:fvi"
+| fieldsFlatten fvi, prefix: "fvi."
+| fields key, summary, statusCurrent, fixVersionDeltaMonths, fvi.name, fv.name, statusUpdateDaysAgo
+| sort fixVersionDeltaMonths desc
+`;
+
+/** VIs missing fix version at implementation start */
+export const missingFvAtStartQuery = () => `
+fetch bizevents, from: now() - 7d
+| filter event.provider == "valueincrement.analzyer"
+| filter matchesValue(owningProgram, "Platform Apps")
+| filter statusCurrent != "Closed"
+| filter fixVersionSetOnImplementationStart == false
+| dedup key, sort: timestamp desc
+| parse fixVersion, "JSON:fv"
+| fieldsFlatten fv, prefix: "fv."
+| fields key, summary, statusCurrent, fv.name, statusUpdateDaysAgo
+| sort statusUpdateDaysAgo desc
+`;
+
+/** Delivery KPI summary — counts for hero cards */
+export const deliveryKpiQuery = () => `
+fetch bizevents, from: now() - 7d
+| filter event.provider == "valueincrement.analzyer"
+| filter matchesValue(owningProgram, "Platform Apps")
+| filter statusCurrent != "Closed"
+| dedup key, sort: timestamp desc
+| summarize
+    total = count(),
+    slipped = countIf(fixVersionDeltaMonths > 0),
+    no_fv_at_start = countIf(fixVersionSetOnImplementationStart == false),
+    stale_updates = countIf(statusUpdateDaysAgo > 14)
+`;
+
+// ─── Production Health Queries ────────────────────────────────
+
 /**
  * PAPA app frontend names — maps to `frontend.name` in RUM data.
  * These are the Dynatrace app IDs as they appear in Real User Monitoring.

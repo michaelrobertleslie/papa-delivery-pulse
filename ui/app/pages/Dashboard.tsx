@@ -19,6 +19,10 @@ import {
   activePortfolioQuery,
   portfolioByAssigneeQuery,
   componentBreakdownQuery,
+  deliveryKpiQuery,
+  fixVersionSlippageQuery,
+  missingFvAtStartQuery,
+  deliveryTimelineQuery,
   LOOKBACK_DAYS,
   type QueryFilters,
 } from "../queries";
@@ -235,6 +239,7 @@ function HeroStats({ filters }: { filters: QueryFilters }) {
   const fvChanges = useDql({ query: fvSprintChangesQuery(LOOKBACK_DAYS, filters) });
   const delivery = useDql({ query: deliveryUpdatesQuery(LOOKBACK_DAYS, filters) });
   const stale = useDql({ query: staleItemsQuery(filters) });
+  const dkpi = useDql({ query: deliveryKpiQuery() });
 
   const totalItems = portfolio.data?.records?.reduce(
     (sum, r) => sum + (Number(r.item_count) || 0), 0
@@ -243,13 +248,15 @@ function HeroStats({ filters }: { filters: QueryFilters }) {
   const fvCount = fvChanges.data?.records?.length ?? 0;
   const deliveryCount = delivery.data?.records?.length ?? 0;
   const staleCount = stale.data?.records?.length ?? 0;
+  const slippedCount = Number(dkpi.data?.records?.[0]?.slipped) || 0;
 
-  const anyLoading = portfolio.isLoading || fvChanges.isLoading || delivery.isLoading || stale.isLoading;
+  const anyLoading = portfolio.isLoading || fvChanges.isLoading || delivery.isLoading || stale.isLoading || dkpi.isLoading;
 
   return (
     <Flex gap={16} style={{ width: "100%" }} flexFlow="wrap">
       <KpiCard label="Active VIs" value={totalItems} signal="info" loading={anyLoading} subtitle="across all statuses" />
       <KpiCard label="Schedule Shifts" value={fvCount} signal={fvCount > 0 ? "warning" : "success"} loading={anyLoading} subtitle={`last ${LOOKBACK_DAYS}d`} />
+      <KpiCard label="FV Slipped" value={slippedCount} signal={slippedCount > 3 ? "danger" : slippedCount > 0 ? "warning" : "success"} loading={anyLoading} subtitle="fix version moved" />
       <KpiCard label="Status Moves" value={deliveryCount} signal={deliveryCount > 0 ? "success" : "neutral"} loading={anyLoading} subtitle={`last ${LOOKBACK_DAYS}d`} />
       <KpiCard label="Stale Items" value={staleCount} signal={staleCount > 3 ? "danger" : staleCount > 0 ? "warning" : "success"} loading={anyLoading} subtitle="60+ days silent" />
     </Flex>
@@ -712,6 +719,193 @@ function PortfolioCard({ filters }: { filters: QueryFilters }) {
   );
 }
 
+/* ── Milestone / Delivery Tracking ───────────────────────────── */
+
+const slippageColumnDefs = [
+  { id: "key", accessor: "key", header: "Key", minWidth: 130, alignment: "center" as const },
+  { id: "summary", accessor: "summary", header: "Summary", minWidth: 260 },
+  { id: "statusCurrent", accessor: "statusCurrent", header: "Status", minWidth: 140, alignment: "center" as const },
+  { id: "fvi.name", accessor: "fvi.name", header: "Original FV", minWidth: 120, alignment: "center" as const },
+  { id: "fv.name", accessor: "fv.name", header: "Current FV", minWidth: 120, alignment: "center" as const },
+  { id: "fixVersionDeltaMonths", accessor: "fixVersionDeltaMonths", header: "Slipped (months)", minWidth: 130, alignment: "right" as const },
+];
+
+const missingFvColumnDefs = [
+  { id: "key", accessor: "key", header: "Key", minWidth: 130, alignment: "center" as const },
+  { id: "summary", accessor: "summary", header: "Summary", minWidth: 260 },
+  { id: "statusCurrent", accessor: "statusCurrent", header: "Status", minWidth: 140, alignment: "center" as const },
+  { id: "fv.name", accessor: "fv.name", header: "Current FV", minWidth: 120, alignment: "center" as const },
+  { id: "statusUpdateDaysAgo", accessor: "statusUpdateDaysAgo", header: "Days Since Update", minWidth: 140, alignment: "right" as const },
+];
+
+function DeliveryTimeline() {
+  const { data, isLoading } = useDql({ query: deliveryTimelineQuery() });
+
+  const chartData = useMemo(() => {
+    const MONTHS: Record<string, number> = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
+    const byFv: Record<string, number> = {};
+    for (const r of data?.records ?? []) {
+      const fv = String(r["fv.name"] ?? "");
+      byFv[fv] = (byFv[fv] || 0) + (Number(r.vi_count) || 0);
+    }
+    return Object.entries(byFv)
+      .map(([name, count]) => {
+        const parts = name.match(/^(\w+)\s+(\d{4})$/);
+        const sortKey = parts ? Number(parts[2]) * 12 + (MONTHS[parts[1]] ?? 0) : 9999;
+        return { category: name, value: count, sortKey };
+      })
+      .sort((a, b) => a.sortKey - b.sortKey);
+  }, [data]);
+
+  return (
+    <Surface style={{ flex: "1 1 45%", minWidth: 340 }}>
+      <Flex flexDirection="column" gap={12} padding={24}>
+        <Heading level={4}>Delivery Timeline</Heading>
+        <Paragraph style={{ opacity: 0.5, fontSize: 12 }}>Active VIs by target fix version — from VI Analyzer</Paragraph>
+        {isLoading ? (
+          <Flex justifyContent="center" padding={24}><ProgressCircle /></Flex>
+        ) : chartData.length > 0 ? (
+          <CategoricalBarChart data={chartData}>
+            <CategoricalBarChart.Legend hidden />
+          </CategoricalBarChart>
+        ) : (
+          <Paragraph style={{ opacity: 0.5 }}>No data</Paragraph>
+        )}
+      </Flex>
+    </Surface>
+  );
+}
+
+function SlippageSummary() {
+  const { data, isLoading } = useDql({ query: deliveryKpiQuery() });
+  const rec = data?.records?.[0];
+  const total = Number(rec?.total) || 0;
+  const slipped = Number(rec?.slipped) || 0;
+  const noFv = Number(rec?.no_fv_at_start) || 0;
+  const staleUpdates = Number(rec?.stale_updates) || 0;
+
+  return (
+    <Surface style={{ flex: "1 1 45%", minWidth: 340 }}>
+      <Flex flexDirection="column" gap={12} padding={24}>
+        <Heading level={4}>Delivery Health Snapshot</Heading>
+        <Paragraph style={{ opacity: 0.5, fontSize: 12 }}>From VI Analyzer — lifecycle signals for active VIs</Paragraph>
+        {isLoading ? (
+          <Flex justifyContent="center" padding={24}><ProgressCircle /></Flex>
+        ) : (
+          <Flex flexDirection="column" gap={8}>
+            <Flex justifyContent="space-between" style={{ padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+              <span style={{ fontSize: 13 }}>Active VIs tracked</span>
+              <Strong>{total}</Strong>
+            </Flex>
+            <Flex justifyContent="space-between" style={{ padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+              <span style={{ fontSize: 13, color: slipped > 3 ? "#ef4444" : slipped > 0 ? "#eab308" : "#22c55e" }}>Fix version slipped</span>
+              <Strong style={{ color: slipped > 3 ? "#ef4444" : slipped > 0 ? "#eab308" : "#22c55e" }}>{slipped}</Strong>
+            </Flex>
+            <Flex justifyContent="space-between" style={{ padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+              <span style={{ fontSize: 13, color: noFv > 5 ? "#ef4444" : noFv > 0 ? "#eab308" : "#22c55e" }}>No FV at implementation start</span>
+              <Strong style={{ color: noFv > 5 ? "#ef4444" : noFv > 0 ? "#eab308" : "#22c55e" }}>{noFv}</Strong>
+            </Flex>
+            <Flex justifyContent="space-between" style={{ padding: "8px 0" }}>
+              <span style={{ fontSize: 13, color: staleUpdates > 5 ? "#ef4444" : staleUpdates > 0 ? "#eab308" : "#22c55e" }}>Status update &gt;14 days ago</span>
+              <Strong style={{ color: staleUpdates > 5 ? "#ef4444" : staleUpdates > 0 ? "#eab308" : "#22c55e" }}>{staleUpdates}</Strong>
+            </Flex>
+          </Flex>
+        )}
+      </Flex>
+    </Surface>
+  );
+}
+
+function MilestoneTracking() {
+  const slippage = useDql({ query: fixVersionSlippageQuery() });
+  const missingFv = useDql({ query: missingFvAtStartQuery() });
+
+  const slippageColumns = useMemo(
+    () => makeColumns(slippageColumnDefs as any),
+    [],
+  );
+  const missingFvColumns = useMemo(
+    () => makeColumns(missingFvColumnDefs as any),
+    [],
+  );
+
+  return (
+    <>
+      {/* Row: Timeline + Health snapshot */}
+      <Flex gap={16} style={{ width: "100%" }} flexFlow="wrap">
+        <DeliveryTimeline />
+        <SlippageSummary />
+      </Flex>
+
+      {/* Fix Version Slippage table */}
+      <Surface>
+        <Flex flexDirection="column" gap={12} padding={24}>
+          <Flex alignItems="center" gap={12}>
+            <span style={{ width: 4, height: 28, borderRadius: 2, background: "#f59e0b", flexShrink: 0 }} />
+            <Flex flexDirection="column" gap={2}>
+              <Heading level={3}>Fix Version Slippage</Heading>
+              <Paragraph style={{ opacity: 0.6, fontSize: 13 }}>VIs whose fix version moved later than originally planned</Paragraph>
+            </Flex>
+            {!slippage.isLoading && (
+              <span style={{
+                marginLeft: "auto",
+                background: (slippage.data?.records?.length ?? 0) > 0 ? "#f59e0b" : "transparent",
+                color: (slippage.data?.records?.length ?? 0) > 0 ? "#000" : "inherit",
+                borderRadius: 20, padding: "4px 14px", fontSize: 13, fontWeight: 600,
+                border: (slippage.data?.records?.length ?? 0) > 0 ? "none" : "1px solid rgba(255,255,255,0.15)",
+              }}>
+                {slippage.data?.records?.length ?? 0} items
+              </span>
+            )}
+          </Flex>
+          {slippage.isLoading ? (
+            <Flex justifyContent="center" padding={16}><ProgressCircle /></Flex>
+          ) : (slippage.data?.records?.length ?? 0) > 0 ? (
+            <DataTable data={slippage.data?.records ?? []} columns={slippageColumns} sortable resizable>
+              <DataTable.Pagination defaultPageSize={10} />
+            </DataTable>
+          ) : (
+            <Paragraph style={{ opacity: 0.5, fontStyle: "italic" }}>No fix version slippage detected — solid planning!</Paragraph>
+          )}
+        </Flex>
+      </Surface>
+
+      {/* Missing FV at implementation start */}
+      <Surface>
+        <Flex flexDirection="column" gap={12} padding={24}>
+          <Flex alignItems="center" gap={12}>
+            <span style={{ width: 4, height: 28, borderRadius: 2, background: "#8b5cf6", flexShrink: 0 }} />
+            <Flex flexDirection="column" gap={2}>
+              <Heading level={3}>No Fix Version at Implementation Start</Heading>
+              <Paragraph style={{ opacity: 0.6, fontSize: 13 }}>VIs that entered Implementation without a fix version — planning gap</Paragraph>
+            </Flex>
+            {!missingFv.isLoading && (
+              <span style={{
+                marginLeft: "auto",
+                background: (missingFv.data?.records?.length ?? 0) > 0 ? "#8b5cf6" : "transparent",
+                color: (missingFv.data?.records?.length ?? 0) > 0 ? "#fff" : "inherit",
+                borderRadius: 20, padding: "4px 14px", fontSize: 13, fontWeight: 600,
+                border: (missingFv.data?.records?.length ?? 0) > 0 ? "none" : "1px solid rgba(255,255,255,0.15)",
+              }}>
+                {missingFv.data?.records?.length ?? 0} items
+              </span>
+            )}
+          </Flex>
+          {missingFv.isLoading ? (
+            <Flex justifyContent="center" padding={16}><ProgressCircle /></Flex>
+          ) : (missingFv.data?.records?.length ?? 0) > 0 ? (
+            <DataTable data={missingFv.data?.records ?? []} columns={missingFvColumns} sortable resizable>
+              <DataTable.Pagination defaultPageSize={10} />
+            </DataTable>
+          ) : (
+            <Paragraph style={{ opacity: 0.5, fontStyle: "italic" }}>All VIs had fix versions set at implementation start — excellent!</Paragraph>
+          )}
+        </Flex>
+      </Surface>
+    </>
+  );
+}
+
 /* ── Main Dashboard ─────────────────────────────────────────── */
 export const Dashboard = () => {
   const [filters, setFilters] = useState<QueryFilters>({
@@ -774,6 +968,9 @@ export const Dashboard = () => {
 
       {/* Charts */}
       <ChartsRow filters={filters} />
+
+      {/* Milestone / Delivery Tracking */}
+      <MilestoneTracking />
 
       {/* Detail sections */}
       <PortfolioCard filters={filters} />
