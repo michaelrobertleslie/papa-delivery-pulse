@@ -6,7 +6,6 @@ A Dynatrace platform app for real-time delivery health tracking of Platform Apps
 
 - **Dashboard** — Portfolio overview, FV/Sprint changes, delivery status changes, items entering implementation, stale item detection
 - **VI Explorer** — Full list of all PAPA value increments with sorting
-- **DQL Playground** — Ad-hoc DQL queries against Grail
 
 ## Data Source
 
@@ -31,16 +30,15 @@ npx dt-app deploy
 ## Architecture
 
 ```
-ui/app/
-├── App.tsx               # Router setup
-├── queries.ts            # All DQL queries (shared)
+src/app/
+├── App.tsx               # Router setup (/ → Dashboard, /explorer → Explorer)
+├── queries.ts            # All DQL queries (shared, 11 query functions)
 ├── components/
 │   ├── Header.tsx        # Navigation header
 │   └── Card.tsx          # Reusable card component
 └── pages/
     ├── Dashboard.tsx     # Main delivery health dashboard
-    ├── Explorer.tsx      # Full VI list with sorting
-    └── Data.tsx          # DQL playground
+    └── Explorer.tsx      # Full VI list with sorting
 ```
 
 ## Built With
