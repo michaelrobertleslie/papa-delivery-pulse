@@ -122,14 +122,19 @@ function makeColumns(
     if (c.accessor === "tel" && onFilterAssignee) {
       return { ...c, cell: ({ value }: { value: unknown }) => {
         const raw = String(value ?? "");
-        const name = raw.split(/[\s-]+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+        // Title-case only if from email (lowercase); Jira names already formatted
+        const name = raw.includes(" ") && raw[0] === raw[0].toLowerCase()
+          ? raw.split(/\s+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")
+          : raw;
         return <AssigneeCell value={name || "—"} onFilter={onFilterAssignee} />;
       }};
     }
     if (c.accessor === "tel") {
       return { ...c, cell: ({ value }: { value: unknown }) => {
         const raw = String(value ?? "");
-        const name = raw.split(/[\s-]+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+        const name = raw.includes(" ") && raw[0] === raw[0].toLowerCase()
+          ? raw.split(/\s+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")
+          : raw;
         return <span>{name || "—"}</span>;
       }};
     }

@@ -45,13 +45,16 @@ function postFilterLines(f?: QueryFilters): string {
   return lines;
 }
 
+/** Shared lookup subquery to resolve Jira display name from daily snapshots */
+const JIRA_NAME_LOOKUP = '| lookup [fetch bizevents, from: now() - 7d | filter event.type == "jira_daily.valueincrement" | filter matchesValue(`owning Program`, "Platform Apps") | sort timestamp desc | dedup key | fieldsAdd assigneeName = `Execution Assignee` | fields key, assigneeName], sourceField:key, lookupField:key, prefix:"jn."';
+
 /** Build filter lines for VI Analyzer queries (executionAssignee is an email).
  *  Uses a lookup against daily snapshots to resolve display name → email. */
 function viFilterLines(f?: QueryFilters): string {
   let lines = "";
   if (f?.executionAssignee) {
-    lines += `\n| lookup [fetch bizevents, from: now() - 7d | filter event.type == "jira_daily.valueincrement" | filter matchesValue(\`owning Program\`, "Platform Apps") | sort timestamp desc | dedup key | fieldsAdd assigneeName = \`Execution Assignee\` | fields key, assigneeName], sourceField:key, lookupField:key, prefix:"jira."`;
-    lines += `\n| filter jira.assigneeName == "${f.executionAssignee}"`;
+    lines += `\n${JIRA_NAME_LOOKUP}`;
+    lines += `\n| filter jn.assigneeName == \"${f.executionAssignee}\"`;
   }
   return lines;
 }
@@ -280,21 +283,24 @@ fetch bizevents, from: now() - 7d
 `;
 
 /** VIs missing fix version at implementation start */
-export const missingFvAtStartQuery = (f?: QueryFilters) => `
+export const missingFvAtStartQuery = (f?: QueryFilters) => {
+  const hasFilter = !!f?.executionAssignee;
+  return `
 fetch bizevents, from: now() - 7d
 | filter event.provider == "valueincrement.analzyer"
 | filter matchesValue(owningProgram, "Platform Apps")
 | filter statusCurrent != "Closed"
 | filter fixVersionSetOnImplementationStart == false
-| dedup key, sort: timestamp desc${viFilterLines(f)}
+| dedup key, sort: timestamp desc${viFilterLines(f)}${hasFilter ? "" : `\n${JIRA_NAME_LOOKUP}`}
 | parse fixVersion, "JSON:fv"
 | fieldsFlatten fv, prefix: "fv."
 | fieldsAdd currentFv = if(isNull(fv.name), "\u26a0 MUST ADD", else: fv.name)
 | fieldsAdd daysSinceUpdate = if(isNull(statusUpdateDaysAgo), -1, else: statusUpdateDaysAgo)
-| fieldsAdd tel = replaceString(arrayFirst(splitString(executionAssignee, "@")), ".", " ")
+| fieldsAdd tel = coalesce(jn.assigneeName, replaceString(arrayFirst(splitString(executionAssignee, "@")), ".", " "))
 | fields key, summary, statusCurrent, currentFv, daysSinceUpdate, tel
 | sort daysSinceUpdate desc
 `;
+};
 
 /** Delivery KPI summary — counts for hero cards */
 export const deliveryKpiQuery = (f?: QueryFilters) => `
@@ -340,21 +346,24 @@ fetch bizevents, from: now() - 7d
 `;
 
 /** Drill-down: VIs missing fix version at implementation start */
-export const noFvAtStartDetailQuery = (f?: QueryFilters) => `
+export const noFvAtStartDetailQuery = (f?: QueryFilters) => {
+  const hasFilter = !!f?.executionAssignee;
+  return `
 fetch bizevents, from: now() - 7d
 | filter event.provider == "valueincrement.analzyer"
 | filter matchesValue(owningProgram, "Platform Apps")
 | filter statusCurrent != "Closed"
 | filter fixVersionSetOnImplementationStart == false
-| dedup key, sort: timestamp desc${viFilterLines(f)}
+| dedup key, sort: timestamp desc${viFilterLines(f)}${hasFilter ? "" : `\n${JIRA_NAME_LOOKUP}`}
 | parse fixVersion, "JSON:fv"
 | fieldsFlatten fv, prefix: "fv."
 | fieldsAdd currentFv = if(isNull(fv.name), "\u26a0 MUST ADD", else: fv.name)
 | fieldsAdd daysSinceUpdate = if(isNull(statusUpdateDaysAgo), -1, else: statusUpdateDaysAgo)
-| fieldsAdd tel = replaceString(arrayFirst(splitString(executionAssignee, "@")), ".", " ")
+| fieldsAdd tel = coalesce(jn.assigneeName, replaceString(arrayFirst(splitString(executionAssignee, "@")), ".", " "))
 | fields key, summary, statusCurrent, currentFv, daysSinceUpdate, tel
 | sort daysSinceUpdate desc
 `;
+};
 
 /** Drill-down: VIs with stale status updates (>14 days) */
 export const staleUpdateVisDetailQuery = (f?: QueryFilters) => `
