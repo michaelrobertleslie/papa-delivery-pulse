@@ -290,7 +290,7 @@ fetch bizevents, from: now() - 7d
 | dedup key, sort: timestamp desc
 | summarize
     total = count(),
-    slipped = countIf(fixVersionDeltaMonths > 0),
+    slipped = countIf(fixVersionDeltaMonths > 0 AND fixVersionDeltaMonths <= 6),
     no_fv_at_start = countIf(fixVersionSetOnImplementationStart == false),
     stale_updates = countIf(statusUpdateDaysAgo > 14)
 `;
@@ -316,6 +316,7 @@ fetch bizevents, from: now() - 7d
 | filter matchesValue(owningProgram, "Platform Apps")
 | filter statusCurrent != "Closed"
 | filter fixVersionDeltaMonths > 0
+| filter fixVersionDeltaMonths <= 6
 | dedup key, sort: timestamp desc
 | parse fixVersion, "JSON:fv"
 | fieldsFlatten fv, prefix: "fv."
