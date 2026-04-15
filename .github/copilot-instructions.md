@@ -1,7 +1,7 @@
 # PAPA Delivery Pulse — Copilot Instructions
 
 ## What This Is
-A Dynatrace platform app (v1.7.4) for real-time delivery health tracking of Platform Apps value increments. Built with dt-app toolkit, Strato Design System, and DQL against Grail bizevents.
+A Dynatrace platform app (v1.8.0) for real-time delivery health tracking of Platform Apps value increments. Built with dt-app toolkit, Strato Design System, and DQL against Grail bizevents.
 
 ## Environment
 - **App ID**: `my.papa.delivery.pulse`
@@ -40,7 +40,8 @@ ui/app/
 ├── queries.ts                 # 31 DQL query functions + filter helpers (554 lines)
 ├── components/
 │   ├── Header.tsx             # Nav header (Dashboard, VI Explorer, Production Health)
-│   └── Card.tsx               # Reusable card wrapper
+│   ├── Card.tsx               # Reusable card wrapper
+│   └── QueryInspector.tsx     # Reusable DQL inspector — Sheet overlay with query + copy + Notebooks link
 └── pages/
     ├── Dashboard.tsx          # Main delivery health dashboard (1286 lines)
     ├── Explorer.tsx           # Full VI list with filters (184 lines)
@@ -68,6 +69,11 @@ ${viFilterLines(f)}     ← injected AFTER dedup (lookup needs deduped keys)
 ### FV Slippage Cap
 - `fixVersionDeltaMonths <= 6` — filters out inherited historical FV data from before the analyzer started (Dec 2025)
 - Applied in `fixVersionSlippageQuery`, `deliveryKpiQuery` (countIf), `slippedVisDetailQuery`
+
+## Key Patterns
+
+### QueryInspector (DQL Transparency)
+Every data card has a `⟨/⟩ DQL` button (from `components/QueryInspector.tsx`) that opens a Strato `Sheet` overlay showing the raw DQL query, a copy button, and an "Open in Notebook" link that uses `getIntentLink({ "dt.query": query }, "dynatrace.notebooks", "view-query")` from `@dynatrace-sdk/navigation` to open Notebooks with the DQL pre-populated. Pattern: store the query string in a local variable, pass to both `useDql({ query })` and `<QueryInspector query={query} title="..." />`.
 
 ## Strato Gotchas (Learned the Hard Way)
 - **Select dropdowns**: `SelectOption` MUST be wrapped in `SelectContent` — without it, options silently don't render ("No items found")

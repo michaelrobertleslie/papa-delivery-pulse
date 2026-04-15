@@ -22,6 +22,7 @@ import {
   PAPA_FRONTENDS,
   PAPA_APP_NAMES,
 } from "../queries";
+import { QueryInspector } from "../components/QueryInspector";
 
 type Col = DataTableColumnDef<ResultRecord>;
 
@@ -33,8 +34,10 @@ function displayName(frontendName: unknown): string {
 
 /* ── App overview: actions + error rate side by side ─── */
 function AppOverview() {
-  const actionsResult = useDql({ query: userActionVolumeQuery() });
-  const errorsResult = useDql({ query: frontendErrorRateQuery() });
+  const actionsQuery = userActionVolumeQuery();
+  const errorsQuery = frontendErrorRateQuery();
+  const actionsResult = useDql({ query: actionsQuery });
+  const errorsResult = useDql({ query: errorsQuery });
 
   const actionData = useMemo(
     () =>
@@ -107,7 +110,10 @@ function AppOverview() {
       {/* User actions chart */}
       <Surface style={{ flex: "1 1 45%", minWidth: 340 }}>
         <Flex flexDirection="column" gap={12} padding={24}>
-          <Heading level={4}>User Actions (2h)</Heading>
+          <Flex gap={8} alignItems="center">
+            <Heading level={4}>User Actions (2h)</Heading>
+            <QueryInspector query={actionsQuery} title="User Actions — DQL" />
+          </Flex>
           {anyLoading ? (
             <Flex justifyContent="center" padding={24}><ProgressCircle /></Flex>
           ) : actionData.length > 0 ? (
@@ -123,7 +129,10 @@ function AppOverview() {
       {/* Error rate table */}
       <Surface style={{ flex: "1 1 45%", minWidth: 400 }}>
         <Flex flexDirection="column" gap={12} padding={24}>
-          <Heading level={4}>Frontend Error Rate (2h)</Heading>
+          <Flex gap={8} alignItems="center">
+            <Heading level={4}>Frontend Error Rate (2h)</Heading>
+            <QueryInspector query={errorsQuery} title="Frontend Error Rate — DQL" />
+          </Flex>
           {anyLoading ? (
             <Flex justifyContent="center" padding={24}><ProgressCircle /></Flex>
           ) : (errorsResult.data?.records?.length ?? 0) > 0 ? (
@@ -139,7 +148,8 @@ function AppOverview() {
 
 /* ── Error trend timeseries ─────────────────────────── */
 function ErrorTrend() {
-  const { data, isLoading } = useDql({ query: frontendErrorTrendQuery() });
+  const etQuery = frontendErrorTrendQuery();
+  const { data, isLoading } = useDql({ query: etQuery });
 
   const chartData = useMemo(() => {
     if (!data?.records?.length) return [];
@@ -164,7 +174,10 @@ function ErrorTrend() {
   return (
     <Surface style={{ width: "100%" }}>
       <Flex flexDirection="column" gap={12} padding={24}>
-        <Heading level={4}>Frontend Error Trend (24h)</Heading>
+        <Flex gap={8} alignItems="center">
+          <Heading level={4}>Frontend Error Trend (24h)</Heading>
+          <QueryInspector query={etQuery} title="Error Trend — DQL" />
+        </Flex>
         {isLoading ? (
           <Flex justifyContent="center" padding={24}><ProgressCircle /></Flex>
         ) : chartData.length > 0 ? (
@@ -181,7 +194,8 @@ function ErrorTrend() {
 
 /* ── Core Web Vitals ────────────────────────────────── */
 function WebVitals() {
-  const { data, isLoading } = useDql({ query: webVitalsSummaryQuery() });
+  const wvQuery = webVitalsSummaryQuery();
+  const { data, isLoading } = useDql({ query: wvQuery });
 
   const columns: Col[] = useMemo(
     () => [
@@ -264,7 +278,10 @@ function WebVitals() {
   return (
     <Surface style={{ width: "100%" }}>
       <Flex flexDirection="column" gap={12} padding={24}>
-        <Heading level={4}>Core Web Vitals (p75, 2h)</Heading>
+        <Flex gap={8} alignItems="center">
+          <Heading level={4}>Core Web Vitals (p75, 2h)</Heading>
+          <QueryInspector query={wvQuery} title="Core Web Vitals — DQL" />
+        </Flex>
         {isLoading ? (
           <Flex justifyContent="center" padding={24}><ProgressCircle /></Flex>
         ) : (data?.records?.length ?? 0) > 0 ? (
@@ -279,7 +296,8 @@ function WebVitals() {
 
 /* ── Top JS exceptions ──────────────────────────────── */
 function TopExceptions() {
-  const { data, isLoading } = useDql({ query: topExceptionsQuery() });
+  const teQuery = topExceptionsQuery();
+  const { data, isLoading } = useDql({ query: teQuery });
 
   const columns: Col[] = useMemo(
     () => [
@@ -324,7 +342,10 @@ function TopExceptions() {
   return (
     <Surface style={{ flex: "1 1 45%", minWidth: 400 }}>
       <Flex flexDirection="column" gap={12} padding={24}>
-        <Heading level={4}>Top JS Exceptions (2h)</Heading>
+        <Flex gap={8} alignItems="center">
+          <Heading level={4}>Top JS Exceptions (2h)</Heading>
+          <QueryInspector query={teQuery} title="JS Exceptions — DQL" />
+        </Flex>
         {isLoading ? (
           <Flex justifyContent="center" padding={24}><ProgressCircle /></Flex>
         ) : (data?.records?.length ?? 0) > 0 ? (
@@ -341,7 +362,8 @@ function TopExceptions() {
 
 /* ── Request errors ─────────────────────────────────── */
 function RequestErrors() {
-  const { data, isLoading } = useDql({ query: requestErrorsQuery() });
+  const reQuery = requestErrorsQuery();
+  const { data, isLoading } = useDql({ query: reQuery });
 
   const columns: Col[] = useMemo(
     () => [
@@ -386,7 +408,10 @@ function RequestErrors() {
   return (
     <Surface style={{ flex: "1 1 45%", minWidth: 400 }}>
       <Flex flexDirection="column" gap={12} padding={24}>
-        <Heading level={4}>Request Errors (2h)</Heading>
+        <Flex gap={8} alignItems="center">
+          <Heading level={4}>Request Errors (2h)</Heading>
+          <QueryInspector query={reQuery} title="Request Errors — DQL" />
+        </Flex>
         {isLoading ? (
           <Flex justifyContent="center" padding={24}><ProgressCircle /></Flex>
         ) : (data?.records?.length ?? 0) > 0 ? (
@@ -403,7 +428,8 @@ function RequestErrors() {
 
 /* ── Davis problems ─────────────────────────────────── */
 function ProblemSummary() {
-  const { data, isLoading } = useDql({ query: activeProblemsByCategoryQuery() });
+  const psQuery = activeProblemsByCategoryQuery();
+  const { data, isLoading } = useDql({ query: psQuery });
 
   const records = data?.records ?? [];
   const total = records.reduce((sum, r) => sum + (Number(r.problem_count) || 0), 0);
@@ -433,7 +459,10 @@ function ProblemSummary() {
       </Surface>
       <Surface style={{ flex: "1 1 400px", minWidth: 340 }}>
         <Flex flexDirection="column" gap={12} padding={24}>
-          <Heading level={4}>Problems by Category</Heading>
+          <Flex gap={8} alignItems="center">
+            <Heading level={4}>Problems by Category</Heading>
+            <QueryInspector query={psQuery} title="Problems by Category — DQL" />
+          </Flex>
           {isLoading ? (
             <Flex justifyContent="center" padding={24}><ProgressCircle /></Flex>
           ) : categoryData.length > 0 ? (
@@ -450,7 +479,8 @@ function ProblemSummary() {
 }
 
 function ProblemTrend() {
-  const { data, isLoading } = useDql({ query: problemTrendQuery() });
+  const ptQuery = problemTrendQuery();
+  const { data, isLoading } = useDql({ query: ptQuery });
 
   const chartData = useMemo(() => {
     if (!data?.records?.length) return [];
@@ -476,7 +506,10 @@ function ProblemTrend() {
   return (
     <Surface style={{ width: "100%" }}>
       <Flex flexDirection="column" gap={12} padding={24}>
-        <Heading level={4}>Problem Trend (7 days)</Heading>
+        <Flex gap={8} alignItems="center">
+          <Heading level={4}>Problem Trend (7 days)</Heading>
+          <QueryInspector query={ptQuery} title="Problem Trend — DQL" />
+        </Flex>
         {isLoading ? (
           <Flex justifyContent="center" padding={24}><ProgressCircle /></Flex>
         ) : chartData.length > 0 ? (
@@ -492,7 +525,8 @@ function ProblemTrend() {
 }
 
 function RecentProblems() {
-  const { data, isLoading } = useDql({ query: recentProblemsQuery() });
+  const rpQuery = recentProblemsQuery();
+  const { data, isLoading } = useDql({ query: rpQuery });
 
   const columns: Col[] = useMemo(
     () => [
@@ -552,7 +586,10 @@ function RecentProblems() {
   return (
     <Surface style={{ width: "100%" }}>
       <Flex flexDirection="column" gap={12} padding={24}>
-        <Heading level={4}>Recent Active Problems (24h)</Heading>
+        <Flex gap={8} alignItems="center">
+          <Heading level={4}>Recent Active Problems (24h)</Heading>
+          <QueryInspector query={rpQuery} title="Recent Problems — DQL" />
+        </Flex>
         {isLoading ? (
           <Flex justifyContent="center" padding={24}><ProgressCircle /></Flex>
         ) : (data?.records?.length ?? 0) > 0 ? (

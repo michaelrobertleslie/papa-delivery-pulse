@@ -26,6 +26,14 @@ A Dynatrace platform app for real-time delivery health tracking of Platform Apps
 - User action volume, error rates, active sessions, Web Vitals
 - Top exceptions, request errors, active problems by category
 
+### Transparency Features
+Every data card has a `⟨/⟩ DQL` button that opens a Sheet overlay showing:
+- The raw DQL query powering the card
+- A copy-to-clipboard button
+- An "Open in Notebook" link that uses `getIntentLink({ "dt.query": query }, "dynatrace.notebooks", "view-query")` to open Dynatrace Notebooks with the DQL pre-populated
+
+This gives users full visibility into how each metric is computed and the ability to explore the data independently.
+
 ## Data Sources
 
 | Source | Event Type | Purpose |
@@ -51,7 +59,7 @@ npx dt-app deploy  # Deploy to environment
 ## Environment
 
 - **App ID**: `my.papa.delivery.pulse`
-- **Version**: 1.7.4
+- **Version**: 1.8.0
 - **Target**: `umsaywsjuo.dev.apps.dynatracelabs.com`
 - **Scopes**: `storage:logs:read`, `storage:buckets:read`, `storage:bizevents:read`
 
@@ -63,7 +71,8 @@ ui/app/
 ├── queries.ts                 # All DQL queries (31 query functions, 554 lines)
 ├── components/
 │   ├── Header.tsx             # Navigation header (Dashboard, VI Explorer, Production Health)
-│   └── Card.tsx               # Reusable card component
+│   ├── Card.tsx               # Reusable card component
+│   └── QueryInspector.tsx     # Reusable DQL inspector — Sheet overlay with query + copy + Notebooks link
 └── pages/
     ├── Dashboard.tsx          # Main delivery health dashboard (1286 lines)
     ├── Explorer.tsx           # Full VI list with filters (184 lines)

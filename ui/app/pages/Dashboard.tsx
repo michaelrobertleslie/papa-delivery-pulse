@@ -32,6 +32,7 @@ import {
   LOOKBACK_DAYS,
   type QueryFilters,
 } from "../queries";
+import { QueryInspector } from "../components/QueryInspector";
 
 const JIRA_BASE = "https://dt-rnd.atlassian.net/browse/";
 
@@ -290,8 +291,10 @@ function HeroStats({ filters }: { filters: QueryFilters }) {
 
 /* ── Charts Row ─────────────────────────────────────────────── */
 function ChartsRow({ filters }: { filters: QueryFilters }) {
-  const statusResult = useDql({ query: activePortfolioQuery(filters) });
-  const assigneeResult = useDql({ query: portfolioByAssigneeQuery(filters) });
+  const statusQuery = activePortfolioQuery(filters);
+  const assigneeQuery = portfolioByAssigneeQuery(filters);
+  const statusResult = useDql({ query: statusQuery });
+  const assigneeResult = useDql({ query: assigneeQuery });
 
   const statusData = useMemo(() => {
     const records = statusResult.data?.records ?? [];
@@ -316,7 +319,10 @@ function ChartsRow({ filters }: { filters: QueryFilters }) {
       {/* Status breakdown */}
       <Surface style={{ flex: "1 1 45%", minWidth: 340 }}>
         <Flex flexDirection="column" gap={12} padding={24}>
-          <Heading level={4}>Active VIs by Status</Heading>
+          <Flex gap={8} alignItems="center">
+            <Heading level={4}>Active VIs by Status</Heading>
+            <QueryInspector query={statusQuery} title="Active VIs by Status — DQL" />
+          </Flex>
           {anyLoading ? (
             <Flex justifyContent="center" padding={24}><ProgressCircle /></Flex>
           ) : statusData.length > 0 ? (
@@ -332,7 +338,10 @@ function ChartsRow({ filters }: { filters: QueryFilters }) {
       {/* Assignee breakdown */}
       <Surface style={{ flex: "1 1 45%", minWidth: 340 }}>
         <Flex flexDirection="column" gap={12} padding={24}>
-          <Heading level={4}>VIs by Execution Assignee</Heading>
+          <Flex gap={8} alignItems="center">
+            <Heading level={4}>VIs by Execution Assignee</Heading>
+            <QueryInspector query={assigneeQuery} title="VIs by Assignee — DQL" />
+          </Flex>
           {anyLoading ? (
             <Flex justifyContent="center" padding={24}><ProgressCircle /></Flex>
           ) : assigneeData.length > 0 ? (
@@ -447,7 +456,10 @@ function SectionCard({
             flexShrink: 0,
           }} />
           <Flex flexDirection="column" gap={2}>
-            <Heading level={3}>{title}</Heading>
+            <Flex gap={8} alignItems="center">
+              <Heading level={3}>{title}</Heading>
+              <QueryInspector query={query} title={`${title} — DQL`} />
+            </Flex>
             <Paragraph style={{ opacity: 0.6, fontSize: 13 }}>{subtitle}</Paragraph>
           </Flex>
           {!isLoading && !error && (
@@ -715,7 +727,8 @@ function PortfolioRow({ record, filters }: { record: ResultRecord; filters: Quer
 }
 
 function PortfolioCard({ filters }: { filters: QueryFilters }) {
-  const { data, error, isLoading } = useDql({ query: portfolioQuery(filters) });
+  const pQuery = portfolioQuery(filters);
+  const { data, error, isLoading } = useDql({ query: pQuery });
   const records = data?.records ?? [];
 
   return (
@@ -724,7 +737,10 @@ function PortfolioCard({ filters }: { filters: QueryFilters }) {
         <Flex alignItems="center" gap={12}>
           <span style={{ width: 4, height: 28, borderRadius: 2, background: "#6366f1", flexShrink: 0 }} />
           <Flex flexDirection="column" gap={2}>
-            <Heading level={3}>Portfolio Overview</Heading>
+            <Flex gap={8} alignItems="center">
+              <Heading level={3}>Portfolio Overview</Heading>
+              <QueryInspector query={pQuery} title="Portfolio Overview — DQL" />
+            </Flex>
             <Paragraph style={{ opacity: 0.6, fontSize: 13 }}>Click a status to see the items</Paragraph>
           </Flex>
         </Flex>
@@ -765,7 +781,8 @@ const missingFvColumnDefs = [
 ];
 
 function DeliveryTimeline() {
-  const { data, isLoading } = useDql({ query: deliveryTimelineQuery() });
+  const dtQuery = deliveryTimelineQuery();
+  const { data, isLoading } = useDql({ query: dtQuery });
   const [expandedFv, setExpandedFv] = useState<string | null>(null);
 
   const MONTHS: Record<string, number> = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
@@ -801,7 +818,10 @@ function DeliveryTimeline() {
   return (
     <Surface style={{ flex: "1 1 45%", minWidth: 340 }}>
       <Flex flexDirection="column" gap={12} padding={24}>
-        <Heading level={4}>Delivery Timeline</Heading>
+        <Flex gap={8} alignItems="center">
+          <Heading level={4}>Delivery Timeline</Heading>
+          <QueryInspector query={dtQuery} title="Delivery Timeline — DQL" />
+        </Flex>
         <Paragraph style={{ opacity: 0.5, fontSize: 12 }}>Active VIs by target fix version — click a version to drill down</Paragraph>
         {isLoading ? (
           <Flex justifyContent="center" padding={24}><ProgressCircle /></Flex>
@@ -877,7 +897,8 @@ function HealthDrillDown({ query }: { query: string }) {
 }
 
 function SlippageSummary({ filters }: { filters?: QueryFilters }) {
-  const { data, isLoading } = useDql({ query: deliveryKpiQuery(filters) });
+  const ssQuery = deliveryKpiQuery(filters);
+  const { data, isLoading } = useDql({ query: ssQuery });
   const [expanded, setExpanded] = useState<string | null>(null);
   const rec = data?.records?.[0];
   const total = Number(rec?.total) || 0;
@@ -895,7 +916,10 @@ function SlippageSummary({ filters }: { filters?: QueryFilters }) {
   return (
     <Surface style={{ flex: "1 1 45%", minWidth: 340 }}>
       <Flex flexDirection="column" gap={12} padding={24}>
-        <Heading level={4}>Delivery Health Snapshot</Heading>
+        <Flex gap={8} alignItems="center">
+          <Heading level={4}>Delivery Health Snapshot</Heading>
+          <QueryInspector query={ssQuery} title="Delivery Health — DQL" />
+        </Flex>
         <Paragraph style={{ opacity: 0.5, fontSize: 12 }}>From VI Analyzer — click a row to see the issues</Paragraph>
         {isLoading ? (
           <Flex justifyContent="center" padding={24}><ProgressCircle /></Flex>
@@ -974,7 +998,8 @@ function MilestoneVisDetail({ milestoneKey }: { milestoneKey: string }) {
 }
 
 function RallyMilestones() {
-  const { data, isLoading } = useDql({ query: rallyMilestonesQuery() });
+  const rmQuery = rallyMilestonesQuery();
+  const { data, isLoading } = useDql({ query: rmQuery });
   const [expanded, setExpanded] = useState<string | null>(null);
   const records = data?.records ?? [];
 
@@ -1006,7 +1031,10 @@ function RallyMilestones() {
         <Flex alignItems="center" gap={12}>
           <span style={{ width: 4, height: 28, borderRadius: 2, background: "#14b8a6", flexShrink: 0 }} />
           <Flex flexDirection="column" gap={2}>
-            <Heading level={3}>Rally Milestones</Heading>
+            <Flex gap={8} alignItems="center">
+              <Heading level={3}>Rally Milestones</Heading>
+              <QueryInspector query={rmQuery} title="Rally Milestones — DQL" />
+            </Flex>
             <Paragraph style={{ opacity: 0.6, fontSize: 13 }}>Rally milestones that Platform Apps VIs contribute to — click to see linked VIs</Paragraph>
           </Flex>
         </Flex>
@@ -1083,8 +1111,10 @@ function RallyMilestones() {
 }
 
 function MilestoneTracking({ filters, onFilterAssignee }: { filters?: QueryFilters; onFilterAssignee?: (name: string) => void }) {
-  const slippage = useDql({ query: fixVersionSlippageQuery(filters) });
-  const missingFv = useDql({ query: missingFvAtStartQuery(filters) });
+  const fvSlipQuery = fixVersionSlippageQuery(filters);
+  const noFvQuery = missingFvAtStartQuery(filters);
+  const slippage = useDql({ query: fvSlipQuery });
+  const missingFv = useDql({ query: noFvQuery });
 
   const slippageColumns = useMemo(
     () => makeColumns(slippageColumnDefs as any),
@@ -1109,7 +1139,10 @@ function MilestoneTracking({ filters, onFilterAssignee }: { filters?: QueryFilte
           <Flex alignItems="center" gap={12}>
             <span style={{ width: 4, height: 28, borderRadius: 2, background: "#f59e0b", flexShrink: 0 }} />
             <Flex flexDirection="column" gap={2}>
-              <Heading level={3}>Fix Version Slippage</Heading>
+              <Flex gap={8} alignItems="center">
+                <Heading level={3}>Fix Version Slippage</Heading>
+                <QueryInspector query={fvSlipQuery} title="FV Slippage — DQL" />
+              </Flex>
               <Paragraph style={{ opacity: 0.6, fontSize: 13 }}>VIs whose fix version moved later than originally planned</Paragraph>
             </Flex>
             {!slippage.isLoading && (
@@ -1142,7 +1175,10 @@ function MilestoneTracking({ filters, onFilterAssignee }: { filters?: QueryFilte
           <Flex alignItems="center" gap={12}>
             <span style={{ width: 4, height: 28, borderRadius: 2, background: "#8b5cf6", flexShrink: 0 }} />
             <Flex flexDirection="column" gap={2}>
-              <Heading level={3}>No Fix Version at Implementation Start</Heading>
+              <Flex gap={8} alignItems="center">
+                <Heading level={3}>No Fix Version at Implementation Start</Heading>
+                <QueryInspector query={noFvQuery} title="No FV at Start — DQL" />
+              </Flex>
               <Paragraph style={{ opacity: 0.6, fontSize: 13 }}>VIs that entered Implementation without a fix version — planning gap</Paragraph>
             </Flex>
             {!missingFv.isLoading && (
