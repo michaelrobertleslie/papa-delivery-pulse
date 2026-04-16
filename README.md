@@ -61,7 +61,7 @@ npx dt-app deploy  # Deploy to environment
 - **App ID**: `my.papa.delivery.pulse`
 - **Version**: 1.8.0
 - **Target**: `umsaywsjuo.dev.apps.dynatracelabs.com`
-- **Scopes**: `storage:logs:read`, `storage:buckets:read`, `storage:bizevents:read`
+- **Scopes**: `storage:logs:read`, `storage:buckets:read`, `storage:bizevents:read`, `storage:events:read`, `storage:metrics:read`
 
 ## Architecture
 
