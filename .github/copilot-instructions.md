@@ -6,7 +6,7 @@ A Dynatrace platform app (v1.8.0) for real-time delivery health tracking of Plat
 ## Environment
 - **App ID**: `my.papa.delivery.pulse`
 - **Target**: `umsaywsjuo.dev.apps.dynatracelabs.com`
-- **Scopes**: `storage:logs:read`, `storage:buckets:read`, `storage:bizevents:read`
+- **Scopes**: `storage:logs:read`, `storage:buckets:read`, `storage:bizevents:read`, `storage:events:read`, `storage:metrics:read`
 
 ## Data Model
 
@@ -43,9 +43,9 @@ ui/app/
 │   ├── Card.tsx               # Reusable card wrapper
 │   └── QueryInspector.tsx     # Reusable DQL inspector — Sheet overlay with query + copy + Notebooks link
 └── pages/
-    ├── Dashboard.tsx          # Main delivery health dashboard (1286 lines)
+    ├── Dashboard.tsx          # Main delivery health dashboard (1322 lines)
     ├── Explorer.tsx           # Full VI list with filters (184 lines)
-    └── ProductionHealth.tsx   # Frontend RUM & problems (624 lines)
+    └── ProductionHealth.tsx   # Frontend RUM & problems (661 lines)
 ```
 
 Note: `Data.tsx` and `Home.tsx` in pages/ are unused scaffolding from the template.

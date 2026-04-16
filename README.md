@@ -74,9 +74,9 @@ ui/app/
 │   ├── Card.tsx               # Reusable card component
 │   └── QueryInspector.tsx     # Reusable DQL inspector — Sheet overlay with query + copy + Notebooks link
 └── pages/
-    ├── Dashboard.tsx          # Main delivery health dashboard (1286 lines)
+    ├── Dashboard.tsx          # Main delivery health dashboard (1322 lines)
     ├── Explorer.tsx           # Full VI list with filters (184 lines)
-    └── ProductionHealth.tsx   # Frontend RUM & problems (624 lines)
+    └── ProductionHealth.tsx   # Frontend RUM & problems (661 lines)
 ```
 
 ### Query Layer (`queries.ts`)
