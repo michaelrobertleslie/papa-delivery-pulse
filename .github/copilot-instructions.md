@@ -1,7 +1,7 @@
 # PAPA Delivery Pulse — Copilot Instructions
 
 ## What This Is
-A Dynatrace platform app (v1.8.0) for real-time delivery health tracking of Platform Apps value increments. Built with dt-app toolkit, Strato Design System, and DQL against Grail bizevents.
+A Dynatrace platform app (v1.9.1) for real-time delivery health tracking of Platform Apps value increments. Built with dt-app toolkit, Strato Design System, and DQL against Grail bizevents.
 
 ## Environment
 - **App ID**: `my.papa.delivery.pulse`
@@ -41,10 +41,11 @@ ui/app/
 ├── components/
 │   ├── Header.tsx             # Nav header (Dashboard, VI Explorer, Production Health)
 │   ├── Card.tsx               # Reusable card wrapper
-│   └── QueryInspector.tsx     # Reusable DQL inspector — Sheet overlay with query + copy + Notebooks link
+│   ├── QueryInspector.tsx     # Reusable DQL inspector — Sheet overlay with query + copy + Notebooks link
+│   └── StatusDetails.tsx      # parseStatusDetails() + RichLine — renders Jira Status comments as dated entries
 └── pages/
-    ├── Dashboard.tsx          # Main delivery health dashboard (1322 lines)
-    ├── Explorer.tsx           # Full VI list with filters (184 lines)
+    ├── Dashboard.tsx          # Main delivery health dashboard (1342 lines, lifecycle-ordered Portfolio Overview)
+    ├── Explorer.tsx           # Full VI list with filters (180 lines)
     └── ProductionHealth.tsx   # Frontend RUM & problems (661 lines)
 ```
 
@@ -74,6 +75,12 @@ ${viFilterLines(f)}     ← injected AFTER dedup (lookup needs deduped keys)
 
 ### QueryInspector (DQL Transparency)
 Every data card has a `⟨/⟩ DQL` button (from `components/QueryInspector.tsx`) that opens a Strato `Sheet` overlay showing the raw DQL query, a copy button, and an "Open in Notebook" link that uses `getIntentLink({ "dt.query": query }, "dynatrace.notebooks", "view-query")` from `@dynatrace-sdk/navigation` to open Notebooks with the DQL pre-populated. Pattern: store the query string in a local variable, pass to both `useDql({ query })` and `<QueryInspector query={query} title="..." />`.
+
+### Lifecycle ordering
+`Dashboard.tsx` defines `VI_LIFECYCLE` and `lifecycleOrder()`. Portfolio Overview rows and the "Active VIs by Status" chart sort categories by lifecycle position (Open → Problem stated → Usecases defined → Ready for Implementation → Implementation → Release Preparation → Post GA → Closed → Postponed → Cancelled), with item_count desc as the tie-break. Unknown statuses slot between active and terminal.
+
+### Rich Status detail rendering
+`components/StatusDetails.tsx` exports `parseStatusDetails(raw): StatusEntry[]` and `RichLine({text})`. Used in Dashboard and Explorer expandable row detail panels to render Jira Status comments as dated entries with bullets, stripping `[url|label|smart-link]` markup. Newest entry full opacity, older entries dimmed.
 
 ## Strato Gotchas (Learned the Hard Way)
 - **Select dropdowns**: `SelectOption` MUST be wrapped in `SelectContent` — without it, options silently don't render ("No items found")

@@ -1,11 +1,11 @@
 # PAPA Delivery Pulse
 
-A Dynatrace platform app for real-time delivery health tracking of Platform Apps value increments.
+A Dynatrace platform app (v1.9.1) for real-time delivery health tracking of Platform Apps value increments.
 
 ## What It Does
 
 ### Dashboard (`/`)
-- **Portfolio overview** — Status distribution bar chart, active VI count by assignee
+- **Portfolio overview** — Status distribution rows sorted by VI lifecycle (Open → Problem stated → Usecases defined → Ready for Implementation → Implementation → Release Preparation → Post GA → Closed → Postponed → Cancelled), so terminal/cold states sink to the bottom; active VI count by assignee
 - **FV/Sprint changes** — Detects fix version and sprint changes within a configurable lookback window
 - **Delivery status changes** — Tracks status transitions (e.g. Implementation → Release Preparation)
 - **Items entering implementation** — Highlights VIs recently moving into active work
@@ -15,6 +15,7 @@ A Dynatrace platform app for real-time delivery health tracking of Platform Apps
 - **Fix Version Slippage** — Table of VIs whose fix version moved (capped at ≤6 months to exclude inherited historical data)
 - **Missing Fix Version** — Table of VIs missing FV at implementation start, with clickable TEL names that filter the dashboard
 - **Rally Milestones** — PAPA VIs linked to cross-program rally milestones, with click-through to contributing items
+- **Rich Status detail rendering** — Expandable row detail panels render Jira Status comments as dated entries with bullet structure, stripping `[url|label|smart-link]` markup. Most recent entry at full opacity; older entries dimmed.
 
 ### VI Explorer (`/explorer`)
 - Full list of all PAPA value increments with sorting
@@ -59,7 +60,7 @@ npx dt-app deploy  # Deploy to environment
 ## Environment
 
 - **App ID**: `my.papa.delivery.pulse`
-- **Version**: 1.8.0
+- **Version**: 1.9.1
 - **Target**: `umsaywsjuo.dev.apps.dynatracelabs.com`
 - **Scopes**: `storage:logs:read`, `storage:buckets:read`, `storage:bizevents:read`, `storage:events:read`, `storage:metrics:read`
 
@@ -72,10 +73,11 @@ ui/app/
 ├── components/
 │   ├── Header.tsx             # Navigation header (Dashboard, VI Explorer, Production Health)
 │   ├── Card.tsx               # Reusable card component
-│   └── QueryInspector.tsx     # Reusable DQL inspector — Sheet overlay with query + copy + Notebooks link
+│   ├── QueryInspector.tsx     # Reusable DQL inspector — Sheet overlay with query + copy + Notebooks link
+│   └── StatusDetails.tsx      # parseStatusDetails() + RichLine component for rendering Jira Status comments
 └── pages/
-    ├── Dashboard.tsx          # Main delivery health dashboard (1322 lines)
-    ├── Explorer.tsx           # Full VI list with filters (184 lines)
+    ├── Dashboard.tsx          # Main delivery health dashboard (1342 lines, lifecycle-ordered Portfolio Overview)
+    ├── Explorer.tsx           # Full VI list with filters (180 lines)
     └── ProductionHealth.tsx   # Frontend RUM & problems (661 lines)
 ```
 
