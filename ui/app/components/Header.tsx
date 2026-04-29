@@ -6,7 +6,12 @@ export const Header = () => {
   return (
     <AppHeader>
       <AppHeader.NavItems>
-        <AppHeader.AppNavLink as={Link} to="/" />
+        <AppHeader.AppNavLink
+          as={Link}
+          to="/"
+          appName="PAPA Delivery Pulse"
+          appIcon="./assets/papa-logo.png"
+        />
         <AppHeader.NavItem as={Link} to="/">
           Dashboard
         </AppHeader.NavItem>

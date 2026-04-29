@@ -60,6 +60,23 @@ function lifecycleOrder(status: string): number {
   return i === -1 ? VI_LIFECYCLE.indexOf("Post GA") + 0.5 : i;
 }
 
+/** Lifecycle-stage colour for status bars (cool early -> warm late, dim terminal). */
+const LIFECYCLE_COLORS: Record<string, string> = {
+  "Open": "#6b7280",
+  "Problem stated": "#64748b",
+  "Usecases defined": "#475569",
+  "Ready for Implementation": "#6366f1",
+  "Implementation": "#3b82f6",
+  "Release Preparation": "#14b8a6",
+  "Post GA": "#22c55e",
+  "Closed": "#374151",
+  "Postponed": "#78716c",
+  "Cancelled": "#7f1d1d",
+};
+function lifecycleColor(status: string): string {
+  return LIFECYCLE_COLORS[status] ?? "#6b7280";
+}
+
 
 /** Render a Jira key as a clickable link opening in a new tab */
 function JiraLink({ value }: { value: unknown }) {
@@ -298,10 +315,14 @@ function ChartsRow({ filters }: { filters: QueryFilters }) {
   const statusData = useMemo(() => {
     const records = statusResult.data?.records ?? [];
     return records
-      .map((r) => ({
-        category: String(r.latest_status ?? "Unknown"),
-        value: Number(r.item_count) || 0,
-      }))
+      .map((r) => {
+        const category = String(r.latest_status ?? "Unknown");
+        return {
+          category,
+          value: Number(r.item_count) || 0,
+          color: lifecycleColor(category),
+        };
+      })
       .sort((a, b) => lifecycleOrder(a.category) - lifecycleOrder(b.category));
   }, [statusResult.data]);
 
@@ -329,6 +350,7 @@ function ChartsRow({ filters }: { filters: QueryFilters }) {
           ) : statusData.length > 0 ? (
             <CategoricalBarChart data={statusData} layout="horizontal">
               <CategoricalBarChart.Legend hidden />
+              <CategoricalBarChart.CategoryAxis maxSize={180} />
             </CategoricalBarChart>
           ) : (
             <Paragraph style={{ opacity: 0.5 }}>No data</Paragraph>
@@ -1246,12 +1268,19 @@ export const Dashboard = () => {
     <Flex flexDirection="column" padding={32} gap={24}>
       {/* Hero header with inline filters */}
       <Flex justifyContent="space-between" alignItems="flex-start" flexFlow="wrap" gap={16}>
-        <Flex flexDirection="column" gap={4} style={{ flex: "1 1 auto" }}>
-          <Heading>PAPA Delivery Pulse</Heading>
-          <Paragraph style={{ opacity: 0.6 }}>
-            Platform Apps delivery health — powered by Grail bizevents
-            &nbsp;·&nbsp; Last <Strong>{LOOKBACK_DAYS} days</Strong>
-          </Paragraph>
+        <Flex alignItems="center" gap={16} style={{ flex: "1 1 auto" }}>
+          <img
+            src="./assets/papa-logo.png"
+            alt="PAPA"
+            style={{ width: 56, height: 56, borderRadius: 8, flexShrink: 0 }}
+          />
+          <Flex flexDirection="column" gap={4}>
+            <Heading>PAPA Delivery Pulse</Heading>
+            <Paragraph style={{ opacity: 0.6 }}>
+              Platform Apps delivery health — powered by Grail bizevents
+              &nbsp;·&nbsp; Last <Strong>{LOOKBACK_DAYS} days</Strong>
+            </Paragraph>
+          </Flex>
         </Flex>
         <FilterChips filters={filters} setFilters={setFilters} />
       </Flex>
@@ -1294,12 +1323,10 @@ export const Dashboard = () => {
       {/* Charts */}
       <ChartsRow filters={filters} />
 
-      {/* Milestone / Delivery Tracking */}
-      <MilestoneTracking filters={filters} onFilterAssignee={handleFilterAssignee} />
-
       {/* Detail sections */}
       <PortfolioCard filters={filters} />
 
+      {/* Per-VI schedule shifts (the storyteller — closest to VI status update narrative) */}
       <SectionCard
         title="Fix Version & Sprint Changes"
         subtitle="Schedule shifts detected — fix version or sprint changed"
@@ -1308,6 +1335,9 @@ export const Dashboard = () => {
         accentColor="#f59e0b"
         onFilterAssignee={handleFilterAssignee}
       />
+
+      {/* Aggregate slippage scoreboard */}
+      <MilestoneTracking filters={filters} onFilterAssignee={handleFilterAssignee} />
 
       <SectionCard
         title="Delivery Status Changes"

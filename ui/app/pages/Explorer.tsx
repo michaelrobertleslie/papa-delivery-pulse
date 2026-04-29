@@ -89,11 +89,18 @@ export const Explorer = () => {
   return (
     <Flex flexDirection="column" padding={32} gap={16}>
       <Flex justifyContent="space-between" alignItems="flex-start" flexFlow="wrap" gap={16}>
-        <Flex flexDirection="column" gap={4} style={{ flex: "1 1 auto" }}>
-          <Heading>VI Explorer</Heading>
-          <Paragraph style={{ opacity: 0.6 }}>
-            All Platform Apps value increments — latest snapshot from Grail. Click a row to see status details.
-          </Paragraph>
+        <Flex alignItems="center" gap={12} style={{ flex: "1 1 auto" }}>
+          <img
+            src="./assets/papa-logo.png"
+            alt="PAPA"
+            style={{ width: 40, height: 40, borderRadius: 6, flexShrink: 0 }}
+          />
+          <Flex flexDirection="column" gap={4}>
+            <Heading>VI Explorer</Heading>
+            <Paragraph style={{ opacity: 0.6 }}>
+              All Platform Apps value increments — latest snapshot from Grail. Click a row to see status details.
+            </Paragraph>
+          </Flex>
         </Flex>
         <Flex gap={8} alignItems="center" flexFlow="wrap">
           <Flex flexDirection="column" gap={2} style={{ width: 280 }}>
