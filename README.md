@@ -1,6 +1,6 @@
 # PAPA Delivery Pulse
 
-A Dynatrace platform app (v1.9.1) for real-time delivery health tracking of Platform Apps value increments.
+A Dynatrace platform app (v1.9.3) for real-time delivery health tracking of Platform Apps value increments.
 
 ## What It Does
 

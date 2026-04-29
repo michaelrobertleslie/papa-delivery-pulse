@@ -1,7 +1,7 @@
 # PAPA Delivery Pulse — Copilot Instructions
 
 ## What This Is
-A Dynatrace platform app (v1.9.1) for real-time delivery health tracking of Platform Apps value increments. Built with dt-app toolkit, Strato Design System, and DQL against Grail bizevents.
+A Dynatrace platform app (v1.9.3) for real-time delivery health tracking of Platform Apps value increments. Built with dt-app toolkit, Strato Design System, and DQL against Grail bizevents.
 
 ## Environment
 - **App ID**: `my.papa.delivery.pulse`
