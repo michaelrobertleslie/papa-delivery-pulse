@@ -33,8 +33,33 @@ import {
   type QueryFilters,
 } from "../queries";
 import { QueryInspector } from "../components/QueryInspector";
+import { parseStatusDetails, RichLine } from "../components/StatusDetails";
 
 const JIRA_BASE = "https://dt-rnd.atlassian.net/browse/";
+
+/**
+ * VI lifecycle order — used to sort portfolio status rows so the active flow
+ * reads top-down and terminal/cold states sink to the bottom.
+ */
+const VI_LIFECYCLE: readonly string[] = [
+  "Open",
+  "Problem stated",
+  "Usecases defined",
+  "Ready for Implementation",
+  "Implementation",
+  "Release Preparation",
+  "Post GA",
+  "Closed",
+  "Postponed",
+  "Cancelled",
+];
+
+function lifecycleOrder(status: string): number {
+  const i = VI_LIFECYCLE.indexOf(status);
+  // Unknown statuses sit between active and terminal slots (after "Post GA").
+  return i === -1 ? VI_LIFECYCLE.indexOf("Post GA") + 0.5 : i;
+}
+
 
 /** Render a Jira key as a clickable link opening in a new tab */
 function JiraLink({ value }: { value: unknown }) {
@@ -80,32 +105,6 @@ function AssigneeCell({ value, onFilter }: { value: unknown; onFilter?: (name: s
     >
       {name}
     </button>
-  );
-}
-
-/** Parse text and turn URLs into clickable links */
-function RichText({ text }: { text: string }) {
-  const urlRegex = /(https?:\/\/[^\s)<>]+)/g;
-  const parts = text.split(urlRegex);
-  return (
-    <span>
-      {parts.map((part, i) =>
-        urlRegex.test(part) ? (
-          <a
-            key={i}
-            href={part}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            style={{ color: "#818cf8", wordBreak: "break-all" }}
-          >
-            {part.length > 80 ? part.slice(0, 77) + "…" : part}
-          </a>
-        ) : (
-          <span key={i}>{part}</span>
-        )
-      )}
-    </span>
   );
 }
 
@@ -298,10 +297,12 @@ function ChartsRow({ filters }: { filters: QueryFilters }) {
 
   const statusData = useMemo(() => {
     const records = statusResult.data?.records ?? [];
-    return records.map((r) => ({
-      category: String(r.latest_status ?? "Unknown"),
-      value: Number(r.item_count) || 0,
-    }));
+    return records
+      .map((r) => ({
+        category: String(r.latest_status ?? "Unknown"),
+        value: Number(r.item_count) || 0,
+      }))
+      .sort((a, b) => lifecycleOrder(a.category) - lifecycleOrder(b.category));
   }, [statusResult.data]);
 
   const assigneeData = useMemo(() => {
@@ -365,10 +366,7 @@ function RowDetail({ row }: { row: ResultRecord }) {
   const fv = String(row.latest_fv ?? "—");
   const assignee = String(row.latest_assignee ?? "Unassigned");
 
-  const lines = details
-    .split(/\n/)
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0);
+  const entries = parseStatusDetails(details);
 
   return (
     <Flex flexDirection="column" gap={12} padding={16} style={{ borderLeft: "3px solid #6366f1", marginLeft: 8 }}>
@@ -393,16 +391,28 @@ function RowDetail({ row }: { row: ResultRecord }) {
       </Flex>
 
       {/* Status details */}
-      <Flex flexDirection="column" gap={4}>
+      <Flex flexDirection="column" gap={8}>
         <span style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1, opacity: 0.5, fontWeight: 600 }}>
           Status Details
         </span>
-        {lines.length > 0 ? (
-          <Flex flexDirection="column" gap={4} style={{ fontSize: 13, lineHeight: 1.5 }}>
-            {lines.map((line, i) => (
-              <span key={i} style={{ opacity: i === 0 ? 1 : 0.7 }}>
-                <RichText text={line} />
-              </span>
+        {entries.length > 0 ? (
+          <Flex flexDirection="column" gap={12} style={{ fontSize: 13, lineHeight: 1.5 }}>
+            {entries.map((entry, i) => (
+              <Flex key={i} flexDirection="column" gap={4} style={{ opacity: i === 0 ? 1 : 0.65 }}>
+                {entry.date && (
+                  <span style={{ fontSize: 11, fontWeight: 600, opacity: 0.7, letterSpacing: 0.5 }}>
+                    {entry.date}
+                  </span>
+                )}
+                {entry.head && <span><RichLine text={entry.head} /></span>}
+                {entry.bullets.length > 0 && (
+                  <ul style={{ margin: 0, paddingLeft: 20 }}>
+                    {entry.bullets.map((b, j) => (
+                      <li key={j}><RichLine text={b} /></li>
+                    ))}
+                  </ul>
+                )}
+              </Flex>
             ))}
           </Flex>
         ) : (
@@ -731,6 +741,16 @@ function PortfolioCard({ filters }: { filters: QueryFilters }) {
   const { data, error, isLoading } = useDql({ query: pQuery });
   const records = data?.records ?? [];
 
+  const sortedRecords = useMemo(() => {
+    return [...records].sort((a, b) => {
+      const ai = lifecycleOrder(String(a.latest_status ?? ""));
+      const bi = lifecycleOrder(String(b.latest_status ?? ""));
+      if (ai !== bi) return ai - bi;
+      // Tie-break by item_count desc within the same lifecycle slot
+      return (Number(b.item_count) || 0) - (Number(a.item_count) || 0);
+    });
+  }, [records]);
+
   return (
     <Surface>
       <Flex flexDirection="column" gap={12} padding={24}>
@@ -750,7 +770,7 @@ function PortfolioCard({ filters }: { filters: QueryFilters }) {
 
         {!isLoading && !error && records.length > 0 && (
           <Flex flexDirection="column" gap={0} style={{ border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, overflow: "hidden" }}>
-            {records.map((r) => (
+            {sortedRecords.map((r) => (
               <PortfolioRow key={String(r.latest_status)} record={r} filters={filters} />
             ))}
           </Flex>

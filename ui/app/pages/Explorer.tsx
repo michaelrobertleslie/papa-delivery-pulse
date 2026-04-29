@@ -8,6 +8,7 @@ import { ProgressCircle } from "@dynatrace/strato-components/content";
 import Colors from "@dynatrace/strato-design-tokens/colors";
 import { useDql } from "@dynatrace-sdk/react-hooks";
 import { allItemsQuery, portfolioByAssigneeQuery, componentBreakdownQuery, statusBreakdownQuery, type QueryFilters } from "../queries";
+import { parseStatusDetails, RichLine } from "../components/StatusDetails";
 
 const JIRA_BASE = "https://dt-rnd.atlassian.net/browse/";
 
@@ -34,38 +35,33 @@ const columns: Col[] = [
   { id: "latest_components", accessor: "latest_components", header: "Components", minWidth: 140 },
 ];
 
-/** Parse text and turn URLs into clickable links */
-function RichText({ text }: { text: string }) {
-  const urlRegex = /(https?:\/\/[^\s)<>]+)/g;
-  const parts = text.split(urlRegex);
-  return (
-    <span>
-      {parts.map((part, i) =>
-        urlRegex.test(part) ? (
-          <a key={i} href={part} target="_blank" rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            style={{ color: "#818cf8", wordBreak: "break-all" }}>
-            {part.length > 80 ? part.slice(0, 77) + "…" : part}
-          </a>
-        ) : (<span key={i}>{part}</span>)
-      )}
-    </span>
-  );
-}
-
 function ExplorerRowDetail({ row }: { row: ResultRecord }) {
   const details = String(row.status_details ?? "");
-  const lines = details.split(/\n/).map((l) => l.trim()).filter((l) => l.length > 0);
+  const entries = parseStatusDetails(details);
 
   return (
     <Flex flexDirection="column" gap={8} padding={16} style={{ borderLeft: "3px solid #6366f1", marginLeft: 8 }}>
       <span style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1, opacity: 0.5, fontWeight: 600 }}>
         Status Details
       </span>
-      {lines.length > 0 ? (
-        <Flex flexDirection="column" gap={4} style={{ fontSize: 13, lineHeight: 1.5 }}>
-          {lines.map((line, i) => (
-            <span key={i} style={{ opacity: i === 0 ? 1 : 0.7 }}><RichText text={line} /></span>
+      {entries.length > 0 ? (
+        <Flex flexDirection="column" gap={12} style={{ fontSize: 13, lineHeight: 1.5 }}>
+          {entries.map((entry, i) => (
+            <Flex key={i} flexDirection="column" gap={4} style={{ opacity: i === 0 ? 1 : 0.65 }}>
+              {entry.date && (
+                <span style={{ fontSize: 11, fontWeight: 600, opacity: 0.7, letterSpacing: 0.5 }}>
+                  {entry.date}
+                </span>
+              )}
+              {entry.head && <span><RichLine text={entry.head} /></span>}
+              {entry.bullets.length > 0 && (
+                <ul style={{ margin: 0, paddingLeft: 20 }}>
+                  {entry.bullets.map((b, j) => (
+                    <li key={j}><RichLine text={b} /></li>
+                  ))}
+                </ul>
+              )}
+            </Flex>
           ))}
         </Flex>
       ) : (
